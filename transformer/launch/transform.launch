@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+
+<launch>
+  <node name="lidar_tf" pkg="transformer" type="lidar_tf" output="screen" />
+  <node name="odom_pc" pkg="transformer" type="odom_pc" output="screen" />
+  <node name="zed_tf" pkg="transformer" type="zed_tf" output="screen" />
+  <node pkg="tf" type="static_transform_publisher" name="map_odom_tf" args="0.165 0 0.475 0 0 0 1 robot/base_link os_sensor 10" output="screen" />
+</launch>
+
