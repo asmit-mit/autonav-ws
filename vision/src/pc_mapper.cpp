@@ -177,7 +177,7 @@ private:
           if (mask_value > 127) {
             obstacle_cloud_->push_back(pcl_point);
           } else {
-            if (i % 2 == 0) {
+            if (i % 4 == 0) {
               free_cloud_->push_back(pcl_point);
             }
           }
