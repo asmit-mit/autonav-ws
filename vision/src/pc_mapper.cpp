@@ -63,6 +63,7 @@ private:
   float prob_miss_;
   float min_prob_;
   float max_prob_;
+  float obstacle_thresh_;
   float octree_resolution_;
   double resolution_;
   int width_;
@@ -246,7 +247,7 @@ private:
       float prob = logOddsToProb(logOddsMap_[index]);
       prob = std::max(min_prob_, std::min(max_prob_, prob));
       logOddsMap_[index] = probToLogOdds(prob);
-      map.data[index] = (prob >= max_prob_) ? 100 : 0;
+      map.data[index] = (prob >= obstacle_thresh_) ? 100 : 0;
     }
 
     for (const auto &[index, count] : obstacle_count) {
@@ -256,7 +257,7 @@ private:
       float prob = logOddsToProb(logOddsMap_[index]);
       prob = std::max(min_prob_, std::min(max_prob_, prob));
       logOddsMap_[index] = probToLogOdds(prob);
-      map.data[index] = (prob >= max_prob_) ? 100 : 0;
+      map.data[index] = (prob >= obstacle_thresh_) ? 100 : 0;
     }
   }
 
@@ -266,6 +267,7 @@ private:
     nh_.param<float>("prob_miss", prob_miss_, 0.3);
     nh_.param<float>("min_prob", min_prob_, 0.12);
     nh_.param<float>("max_prob", max_prob_, 0.97);
+    nh_.param<float>("obstacle_threshold", obstacle_thresh_, 0.6);
     nh_.param<float>("octree_resolution", octree_resolution_, 0.01);
     nh_.param<double>("resolution", resolution_, 0.01);
     nh_.param<int>("width", width_, 3500);
@@ -298,7 +300,7 @@ public:
   }
 
   void run() {
-    ros::Rate loop_rate(10);
+    ros::Rate loop_rate(50);
     nav_msgs::OccupancyGrid map;
 
     map.info.resolution = grid_.resolution;

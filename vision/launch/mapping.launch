@@ -4,10 +4,11 @@
     <node pkg="vision" type="pc_mapper_node" name="pc_mapper_node" output="screen">
         <!-- Parameters -->
         <param name="prior" value="0.5" />
-        <param name="prob_hit" value="0.65" />
-        <param name="prob_miss" value="0.3" />
-        <param name="min_prob" value="0.12" />
-        <param name="max_prob" value="0.97" />
+        <param name="prob_hit" value="0.8" />
+        <param name="prob_miss" value="0.2" />
+        <param name="min_prob" value="0.05" />
+        <param name="max_prob" value="0.99" />
+        <param name="obstacle_threshold" value="0.6" />
         <param name="octree_resolution" value="0.01" />
         <param name="resolution" value="0.01" />
         <param name="width" value="3500" />
