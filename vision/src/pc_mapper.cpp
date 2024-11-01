@@ -174,7 +174,7 @@ private:
 
         uchar mask_value = current_mask_.at<uchar>(row, col);
 
-        if (point.x < 4) {
+        if (point.x < 4 && point.z < 0.1) {
           if (mask_value > 127) {
             obstacle_cloud_->push_back(pcl_point);
           } else {
