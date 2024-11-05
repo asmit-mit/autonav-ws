@@ -28,3 +28,6 @@ include_directories(${catkin_INCLUDE_DIRS})
 
 add_executable(pc_mapper_node src/pc_mapper.cpp)
 target_link_libraries(pc_mapper_node ${catkin_LIBRARIES})
+
+add_executable(scan_pub_node src/2d_scan.cpp)
+target_link_libraries(scan_pub_node ${catkin_LIBRARIES})

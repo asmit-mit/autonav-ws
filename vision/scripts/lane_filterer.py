@@ -17,6 +17,8 @@ class LaneFilterer:
         self.lh = rospy.get_param("~lower_h", 0)
         self.ls = rospy.get_param("~lower_s", 0)
         self.lv = rospy.get_param("~lower_v", 0)
+        self.kernel_size = rospy.get_param("~kernel_size", 3)
+        self.iterations = rospy.get_param("~iterations", 3)
 
         self.image_pub = rospy.Publisher("mask_topic_pub", Image, queue_size=1)
         self.image_sub = rospy.Subscriber(
@@ -34,11 +36,15 @@ class LaneFilterer:
             return
 
         hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
+        
+        kernel = np.ones((self.kernel_size, self.kernel_size), np.uint8)
 
         lower_bound = np.array([self.lh, self.ls, self.lv])
         upper_bound = np.array([self.hh, self.hs, self.hv])
 
         mask = cv2.inRange(hsv_image, lower_bound, upper_bound)
+        mask = cv2.erode(mask, kernel, iterations=3)
+        mask = cv2.dilate(mask, kernel, iterations=3)
 
         try:
             mask_msg = self.bridge.cv2_to_imgmsg(mask, encoding="mono8")

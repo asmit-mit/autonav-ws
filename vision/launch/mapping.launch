@@ -14,7 +14,7 @@
         <param name="width" value="3500" />
         <param name="height" value="3500" />
 
-        <remap from="pointcloud_topic_sub" to="/odom/point_cloud" />
+        <remap from="pointcloud_topic_sub" to="/nav/point_cloud" />
         <remap from="odom_topic_sub" to="/robot/dlo/odom_node/odom" />
         <remap from="mask_topic_sub" to="/lane_filter/mask" />
         <remap from="debug_cloud_pub" to="/lane_filter/debug_cloud" />

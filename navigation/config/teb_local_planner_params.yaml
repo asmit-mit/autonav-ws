@@ -1,0 +1,85 @@
+TebLocalPlannerROS:
+  # Robot Configuration Parameters
+  max_vel_x: 1.2  # Maximum velocity in x-direction
+  max_vel_x_backwards: 0.2  # Maximum velocity in x-direction for backwards driving
+  max_vel_y: 0.0  # Maximum velocity in y-direction (set to zero for non-holonomic robots)
+  max_vel_theta: 1.0  # Maximum rotational velocity
+  acc_lim_x: 2.0  # Acceleration limit in x-direction
+  acc_lim_y: 0.0  # Acceleration limit in y-direction (set to zero for non-holonomic robots)
+  acc_lim_theta: 1.2  # Acceleration limit for rotation
+  min_turning_radius: 0.0  # Minimum turning radius for a carlike robot (diff-drive robot set to zero)
+  wheelbase: 0.0  # Wheelbase for carlike robot, set to zero for diff-drive robots
+
+  # Goal Tolerances
+  xy_goal_tolerance: 0.2  # Goal tolerance in x and y directions
+  yaw_goal_tolerance: 1.0  # Goal tolerance in yaw
+  free_goal_vel: false  # Allow the robot's velocity to be nonzero once it reaches the goal
+
+  # Trajectory Configuration
+  dt_ref: 0.6  # Reference time delta between trajectory poses
+  dt_hysteresis: 0.4  # Hysteresis for dt_ref
+  min_samples: 3  # Minimum number of samples (poses) for the trajectory
+  global_plan_overwrite_orientation: true  # Overwrite orientation of local plan based on global plan
+  max_global_plan_lookahead_dist: 2.0  # Maximum distance of global plan to look ahead for reference poses
+  force_reinit_new_goal_dist: 2.0  # Distance to new goal that triggers reinitialization of the trajectory
+  feasibility_check_no_poses: 5  # Number of poses to check for feasibility
+
+  # Obstacle Parameters
+  min_obstacle_dist: 0.4  # Minimum distance to obstacles
+  inflation_dist: 0.4  # Inflation distance around obstacles
+  costmap_converter_plugin: ""  # Plugin for costmap to polygon conversion
+  costmap_converter_spin_thread: true  # Use a dedicated thread for the costmap converter
+  costmap_converter_rate: 5  # Rate (Hz) for running the costmap converter
+
+  # Optimization Parameters
+  no_inner_iterations: 5  # Number of inner iterations
+  no_outer_iterations: 4  # Number of outer iterations
+  penalty_epsilon: 0.1  # Epsilon for penalty approximation
+  weight_max_vel_x: 2  # Weight for maximizing x-velocity
+  weight_max_vel_theta: 1  # Weight for maximizing theta-velocity
+  weight_acc_lim_x: 1  # Weight for minimizing x-acceleration
+  weight_acc_lim_theta: 1  # Weight for minimizing theta-acceleration
+  weight_kinematics_nh: 1000  # Weight for non-holonomic kinematics
+  weight_kinematics_forward_drive: 1  # Weight for enforcing forward drive
+  weight_kinematics_turning_radius: 1  # Weight for minimizing turning radius
+  weight_optimaltime: 1  # Weight for optimizing time
+  weight_obstacle: 50  # Weight for obstacle avoidance
+  weight_dynamic_obstacle: 10  # Weight for dynamic obstacle avoidance
+  weight_viapoint: 1.0  # Weight for following via points
+  weight_prefer_rotdir: 50  # Weight for preferring a specific rotation direction
+  weight_adapt_factor: 2.0  # Adaptive weight factor
+
+  # Homotopy Class Planning
+  enable_homotopy_class_planning: true  # Enable homotopy class planning
+  enable_multithreading: true  # Enable multithreading
+  simple_exploration: false  # Use simple exploration strategy
+  max_number_classes: 10  # Maximum number of alternative trajectories
+  selection_cost_hysteresis: 1.0  # Hysteresis for cost selection
+  selection_prefer_initial_plan: 0.95  # Preference for initial plan
+  selection_obst_cost_scale: 1.0  # Scaling factor for obstacle cost
+  selection_viapoint_cost_scale: 1.0  # Scaling factor for via point cost
+  selection_cost_lookahead: -1.0  # Lookahead for cost selection
+  roadmap_graph_no_samples: 15  # Number of samples for roadmap graph
+  roadmap_graph_area_width: 6  # Width of the sampling area for the roadmap graph
+  h_signature_prescaler: 0.5  # Prescaler for the H-signature
+  h_signature_threshold: 0.1  # Threshold for the H-signature
+  obstacle_keypoint_offset: 0.1  # Offset for obstacle keypoints
+  obstacle_heading_threshold: 0.45  # Threshold for obstacle heading
+
+  # Visualization
+  teb_marker_topic: "teb_markers"  # Topic for TEB markers
+  publish_feedback: true  # Publish planner feedback
+  publish_feedback_timing: true  # Publish timing information for feedback
+  publish_trajectories: true  # Publish trajectories for debugging
+  publish_feedback_velocity: false  # Publish velocity feedback
+
+  # Advanced Parameters
+  weight_inflation: 0.1  # Weight for costmap inflation
+  weight_velocity_obstacle_ratio: 1.0  # Ratio of weight for velocity and obstacle
+  weight_dynamic_viapoint: 1.0  # Weight for dynamic via points
+  weight_viapoint_range: 0.5  # Range for via point weighting
+  include_costmap_obstacles: true  # Include obstacles from the costmap
+  include_dynamic_obstacles: true  # Include dynamic obstacles
+  costmap_obstacles_behind_robot_dist: 1.0  # Distance behind the robot to include costmap obstacles
+  global_plan_prune_distance: 1.0  # Distance to prune the global plan
+  trajectory_overlap: 0.5  # Overlap for trajectories in homotopy class planning

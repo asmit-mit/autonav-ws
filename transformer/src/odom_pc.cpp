@@ -13,7 +13,7 @@ public:
     pc_sub = nh.subscribe("/zed_node/point_cloud/cloud_registered", 1,
                           &PointCloudTransformer::pointcloudCallback, this);
 
-    pc_pub = nh.advertise<sensor_msgs::PointCloud2>("odom/point_cloud", 1);
+    pc_pub = nh.advertise<sensor_msgs::PointCloud2>("nav/point_cloud", 1);
 
     tf_buffer = std::make_shared<tf2_ros::Buffer>();
     tf_listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
