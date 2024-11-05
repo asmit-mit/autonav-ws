@@ -20,8 +20,8 @@
     <param name="controller_frequency" value="10.0" />
 
     <remap from="cmd_vel" to="/cmd_vel" />
-    <remap from="odom" to="/robot/dlo/odom_node/odom" />
     <remap from="scan" to="/nav/scan" />
+    <remap from="odom" to="/robot/dlo/odom_node/odom" />
     <remap from="map" to="/global_map" />
   </node>
 </launch>
