@@ -3,8 +3,6 @@
 
   <!-- Move Base Node -->
   <node pkg="move_base" type="move_base" name="move_base" output="screen">
-    <rosparam file="$(find navigation)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
-    <rosparam file="$(find navigation)/config/costmap_common_params.yaml" command="load" ns="local_costmap" />
     <rosparam file="$(find navigation)/config/local_costmap_params.yaml" command="load" />
     <rosparam file="$(find navigation)/config/global_costmap_params.yaml" command="load" />
 
@@ -16,8 +14,6 @@
 
     <!-- <rosparam file="$(find navigation)/config/teb_local_planner_params.yaml" command="load" />
     <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" /> -->
-
-    <param name="controller_frequency" value="10.0" />
 
     <remap from="cmd_vel" to="/cmd_vel" />
     <remap from="scan" to="/nav/scan" />

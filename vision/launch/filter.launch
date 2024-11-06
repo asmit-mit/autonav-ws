@@ -5,11 +5,11 @@
     <node pkg="vision" type="lane_filterer.py" name="lane_filter_node" output="screen">
         <!-- HSV Parameters -->
         <param name="higher_h" value="180" />
-        <param name="higher_s" value="59" />
+        <param name="higher_s" value="42" />
         <param name="higher_v" value="255" />
         <param name="lower_h" value="32" />
         <param name="lower_s" value="0" />
-        <param name="lower_v" value="167" />
+        <param name="lower_v" value="190" />
         <param name="kernel_size" value="3" />
         <param name="iterations" value="20" />
 
