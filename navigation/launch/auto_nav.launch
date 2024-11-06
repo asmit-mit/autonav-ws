@@ -16,7 +16,7 @@
     <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" /> -->
 
     <remap from="cmd_vel" to="/cmd_vel" />
-    <remap from="scan" to="/nav/scan" />
+    <remap from="scan" to="/ouster/scan2" />
     <remap from="odom" to="/robot/dlo/odom_node/odom" />
     <remap from="map" to="/global_map" />
   </node>
