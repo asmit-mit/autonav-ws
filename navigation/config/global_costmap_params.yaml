@@ -32,7 +32,7 @@ global_costmap:
     laser_scan_sensor:
       sensor_frame: os_sensor
       data_type: PointCloud2
-      topic: /ouster/points2
+      topic: /nav/obstacle_cloud
       marking: true
       clearing: true
       max_obstacle_height: 3.0

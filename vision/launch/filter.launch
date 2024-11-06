@@ -1,9 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
-    <!-- Lane Filterer Node -->
     <node pkg="vision" type="lane_filterer.py" name="lane_filter_node" output="screen">
-        <!-- HSV Parameters -->
         <param name="higher_h" value="180" />
         <param name="higher_s" value="42" />
         <param name="higher_v" value="255" />
@@ -13,8 +11,8 @@
         <param name="kernel_size" value="3" />
         <param name="iterations" value="20" />
 
-        <!-- Remap topics if needed -->
         <remap from="rgb_image_topic_sub" to="/zed_node/rgb/image_rect_color" />
         <remap from="mask_topic_pub" to="/lane_filter/mask" />
     </node>
+
 </launch>

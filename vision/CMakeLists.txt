@@ -29,3 +29,5 @@ include_directories(${catkin_INCLUDE_DIRS})
 add_executable(pc_mapper_node src/pc_mapper.cpp)
 target_link_libraries(pc_mapper_node ${catkin_LIBRARIES})
 
+add_executable(obstacle_cloud_node src/obstacle_cloud.cpp)
+target_link_libraries(obstacle_cloud_node ${catkin_LIBRARIES})

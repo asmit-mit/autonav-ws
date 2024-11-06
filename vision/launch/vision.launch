@@ -4,5 +4,6 @@
   <include file="$(find vision)/launch/sensors.launch" />
   <include file="$(find vision)/launch/filter.launch" />
   <include file="$(find vision)/launch/mapping.launch" />
+  <include file="$(find vision)/launch/obstacle_cloud.launch" />
 
 </launch>
