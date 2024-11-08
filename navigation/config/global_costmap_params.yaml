@@ -1,7 +1,7 @@
 global_costmap:
   global_frame: robot/odom
   robot_base_frame: robot/base_link
-  update_frequency: 10.0
+  update_frequency: 5.0
   publish_frequency: 5.0
   static_map: true
   rolling_window: false
@@ -35,9 +35,8 @@ global_costmap:
       topic: /nav/obstacle_cloud
       marking: true
       clearing: true
-      max_obstacle_height: 3.0
+      max_obstacle_height: 2.0
       min_obstacle_height: 0.5
       obstacle_range: 7.0
       raytrace_range: 7.0
-      inf_is_valid: true
       observation_persistance: 0.2
