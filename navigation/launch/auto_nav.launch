@@ -12,8 +12,8 @@
     <rosparam file="$(find navigation)/config/base_local_planner.yaml" command="load" />
     <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" />
 
-    <!-- <rosparam file="$(find navigation)/config/teb_local_planner_params.yaml" command="load" />
-    <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" /> -->
+    <!-- <rosparam file="$(find navigation)/config/teb_local_planner_params.yaml" command="load" /> -->
+    <!-- <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" /> -->
 
     <remap from="cmd_vel" to="/cmd_vel" />
     <remap from="scan" to="/ouster/scan2" />

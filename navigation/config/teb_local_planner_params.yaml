@@ -1,12 +1,12 @@
 TebLocalPlannerROS:
   # Robot Configuration Parameters
-  max_vel_x: 1.2 # Maximum velocity in x-direction
-  max_vel_x_backwards: 0.2 # Maximum velocity in x-direction for backwards driving
+  max_vel_x: 0.5 # Maximum velocity in x-direction
+  max_vel_x_backwards: 0.1 # Maximum velocity in x-direction for backwards driving
   max_vel_y: 0.0 # Maximum velocity in y-direction (set to zero for non-holonomic robots)
   max_vel_theta: 1.0 # Maximum rotational velocity
-  acc_lim_x: 2.0 # Acceleration limit in x-direction
+  acc_lim_x: 2.5 # Acceleration limit in x-direction
   acc_lim_y: 0.0 # Acceleration limit in y-direction (set to zero for non-holonomic robots)
-  acc_lim_theta: 1.2 # Acceleration limit for rotation
+  acc_lim_theta: 1.0 # Acceleration limit for rotation
   min_turning_radius: 0.0 # Minimum turning radius for a carlike robot (diff-drive robot set to zero)
   wheelbase: 0.0 # Wheelbase for carlike robot, set to zero for diff-drive robots
 
@@ -21,15 +21,8 @@ TebLocalPlannerROS:
   min_samples: 3 # Minimum number of samples (poses) for the trajectory
   global_plan_overwrite_orientation: true # Overwrite orientation of local plan based on global plan
   max_global_plan_lookahead_dist: 2.0 # Maximum distance of global plan to look ahead for reference poses
-  force_reinit_new_goal_dist: 2.0 # Distance to new goal that triggers reinitialization of the trajectory
+  force_reinit_new_goal_dist: 3.0 # Distance to new goal that triggers reinitialization of the trajectory
   feasibility_check_no_poses: 5 # Number of poses to check for feasibility
-
-  # Obstacle Parameters
-  min_obstacle_dist: 0.4 # Minimum distance to obstacles
-  inflation_dist: 0.4 # Inflation distance around obstacles
-  costmap_converter_plugin: "" # Plugin for costmap to polygon conversion
-  costmap_converter_spin_thread: true # Use a dedicated thread for the costmap converter
-  costmap_converter_rate: 5 # Rate (Hz) for running the costmap converter
 
   # Optimization Parameters
   no_inner_iterations: 5 # Number of inner iterations
