@@ -7,7 +7,7 @@
 
 class PointCloudTransformer : public rclcpp::Node {
 public:
-  PointCloudTransformer() : Node("odom_pc") {
+  PointCloudTransformer() : Node("point_cloud_transformer") {
     pc_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
       "/zed_node/point_cloud/cloud_registered", 1,
       std::bind(&PointCloudTransformer::pointcloudCallback, this, std::placeholders::_1));

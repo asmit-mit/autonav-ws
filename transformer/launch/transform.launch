@@ -13,8 +13,8 @@ def generate_launch_description():
         ),
         Node(
             package='transformer',
-            executable='odom_pc',
-            name='odom_pc',
+            executable='point_cloud_transformer',
+            name='point_cloud_transformer',
             output='screen',
         ),
         Node(
