@@ -26,7 +26,7 @@ class HSVFilterNode:
         rospy.sleep(1)
 
         self.image_sub = rospy.Subscriber(
-            "/zed_node/rgb/image_rect_color",
+            "/lane_filter/mask",
             Image,
             self.image_callback,
             queue_size=10,

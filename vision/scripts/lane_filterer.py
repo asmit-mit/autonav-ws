@@ -17,8 +17,7 @@ class LaneFilterer:
         self.lh = rospy.get_param("~lower_h", 0)
         self.ls = rospy.get_param("~lower_s", 0)
         self.lv = rospy.get_param("~lower_v", 0)
-        self.kernel_size = rospy.get_param("~kernel_size", 3)
-        self.iterations = rospy.get_param("~iterations", 3)
+        self.target_v = rospy.get_param("~target_v", 140)
 
         self.image_pub = rospy.Publisher("mask_topic_pub", Image, queue_size=1)
         self.image_sub = rospy.Subscriber(
@@ -27,6 +26,17 @@ class LaneFilterer:
 
         self.bridge = CvBridge()
 
+    def make_image_brighter(self, image, target_v):
+        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV) 
+        h, s, v = cv2.split(hsv_image)
+        avg_v = np.mean(v)
+        scale_factor = target_v / avg_v if avg_v > 0 else 1
+        v = np.clip(v * scale_factor, 0, 255).astype(np.uint8)
+        adjusted_hsv = cv2.merge((h, s, v))
+        brighter_image = cv2.cvtColor(adjusted_hsv, cv2.COLOR_HSV2BGR)
+    
+        return brighter_image
+
     def image_callback(self, msg):
         try:
 
@@ -34,17 +44,34 @@ class LaneFilterer:
         except CvBridgeError as e:
             rospy.logerr("Could not convert image: %s", e)
             return
-
-        hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
         
-        kernel = np.ones((self.kernel_size, self.kernel_size), np.uint8)
+        brighter_bgr_image = self.make_image_brighter(cv_image, self.target_v)
 
-        lower_bound = np.array([self.lh, self.ls, self.lv])
-        upper_bound = np.array([self.hh, self.hs, self.hv])
+        # gray_image = cv2.cvtColor(brighter_bgr_image, cv2.COLOR_BGR2GRAY)
+        # # blur_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
+        # canny_image = cv2.Canny(gray_image, 50, 150) 
+        #
+        # kernel = np.ones((1,1), np.uint8)
+        # # canny_image = cv2.dilate(canny_image, kernel=kernel, iterations=1)
+        # canny_image = cv2.erode(canny_image, kernel=kernel, iterations=0)
+        #
+        #
+        # contours, _ = cv2.findContours(canny_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # min_area = 50
+        # filtered_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
+        #
+        # filtered_contour_mask = np.zeros_like(canny_image)
+        # cv2.drawContours(filtered_contour_mask, filtered_contours, -1, 255, thickness=cv2.FILLED)       # contours,_ = cv2.findContours(canny_image, )
 
-        mask = cv2.inRange(hsv_image, lower_bound, upper_bound)
-        mask = cv2.erode(mask, kernel, iterations=3)
-        mask = cv2.dilate(mask, kernel, iterations=3)
+        hsv_image = cv2.cvtColor(brighter_bgr_image, cv2.COLOR_BGR2HSV)
+
+        lower_white = np.array([self.lh, self.ls, self.lv])
+        upper_white = np.array([self.hh, self.hs, self.hv])
+        mask = cv2.inRange(hsv_image, lower_white, upper_white)
+
+        kernel = np.ones((5, 5), np.uint8)
+        mask = cv2.erode(mask, kernel=kernel, iterations=2)
+        mask = cv2.dilate(mask, kernel=kernel, iterations=2)
 
         try:
             mask_msg = self.bridge.cv2_to_imgmsg(mask, encoding="mono8")
