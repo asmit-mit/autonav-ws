@@ -48,6 +48,14 @@ ament_target_dependencies(pc_mapper_node
     visualization_msgs
 )
 
+install(
+  PROGRAMS
+    scripts/mono_cam.py  
+    scripts/lane_filterer.py
+    scripts/hsv_filter_gui.py
+    DESTINATION lib/${PROJECT_NAME}
+)
+
 install(TARGETS pc_mapper_node
   DESTINATION lib/${PROJECT_NAME}
 )

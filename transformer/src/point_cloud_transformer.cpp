@@ -9,7 +9,7 @@ class PointCloudTransformer : public rclcpp::Node {
 public:
   PointCloudTransformer() : Node("point_cloud_transformer") {
     pc_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      "/zed_node/point_cloud/cloud_registered", 1,
+      "zed/zed_node/point_cloud/cloud_registered", 1,
       std::bind(&PointCloudTransformer::pointcloudCallback, this, std::placeholders::_1));
 
     pc_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("odom/point_cloud", 1);
@@ -22,7 +22,7 @@ private:
   void pointcloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg) {
     try {
       geometry_msgs::msg::TransformStamped transform_stamped =
-          tf_buffer_->lookupTransform("robot/base_link", cloud_msg->header.frame_id, rclcpp::Time(0),
+          tf_buffer_->lookupTransform("odom", cloud_msg->header.frame_id, rclcpp::Time(0),
                                        rclcpp::Duration::from_seconds(1.0));
 
       sensor_msgs::msg::PointCloud2 transformed_cloud;

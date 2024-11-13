@@ -192,7 +192,7 @@ private:
 
     sensor_msgs::msg::PointCloud2 debug_cloud;
     pcl::toROSMsg(*obstacle_cloud_, debug_cloud);
-    debug_cloud.header.frame_id = "robot/odom";
+    debug_cloud.header.frame_id = "odom";
     debug_cloud.header.stamp = this->get_clock()->now();
     debug_cloud_pub_->publish(debug_cloud);
   }
@@ -330,7 +330,7 @@ public:
     map.data.resize(grid_.width * grid_.height, -1);
 
     map.header.stamp = this->get_clock()->now();
-    map.header.frame_id = "robot/odom";
+    map.header.frame_id = "odom";
 
     updateMap(map);
     map_pub_->publish(map);

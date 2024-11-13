@@ -9,7 +9,7 @@ class ZedTfNode : public rclcpp::Node {
 public:
   ZedTfNode() : Node("zed_tf"), tf_broadcaster_(this) {
     imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
-      "/zed_node/imu/data", 10,
+      "zed/zed_node/imu/data", 10,
       std::bind(&ZedTfNode::imuCallBack, this, std::placeholders::_1));
   }
 
@@ -18,8 +18,8 @@ private:
     geometry_msgs::msg::TransformStamped transform_stamped;
 
     transform_stamped.header.stamp = this->now();
-    transform_stamped.header.frame_id = "robot/base_link";
-    transform_stamped.child_frame_id = "zed2i_base_link";
+    transform_stamped.header.frame_id = "base_link";
+    transform_stamped.child_frame_id = "zed_camera_link";
 
     // Extract orientation from the IMU message
     tf2::Quaternion imu_orientation(msg->orientation.x, msg->orientation.y,
@@ -31,7 +31,6 @@ private:
     // Set roll and yaw to zero
     yaw = 0;
     roll = 0;
-    pitch = 0;
 
     tf2::Quaternion corrected_orientation;
     corrected_orientation.setRPY(roll, pitch, yaw);
