@@ -3,6 +3,6 @@
 <launch>
 
   <include file="$(find vision)/launch/vision.launch" />
-  <include file="$(find navigation)/launch/auto_nav.launch" />
+  <!-- <include file="$(find navigation)/launch/auto_nav.launch" /> -->
 
 </launch>
