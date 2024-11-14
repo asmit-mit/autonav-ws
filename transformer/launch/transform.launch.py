@@ -5,18 +5,18 @@ from launch.substitutions import LaunchConfiguration
 
 def generate_launch_description():
     return LaunchDescription([
-        # Node(
-        #     package='transformer',
-        #     executable='lidar_tf',
-        #     name='lidar_tf',
-        #     output='screen',
-        # ),
-        # Node(
-        #     package='transformer',
-        #     executable='point_cloud_transformer',
-        #     name='point_cloud_transformer',
-        #     output='screen',
-        # ),
+        Node(
+            package='transformer',
+            executable='lidar_tf',
+            name='lidar_tf',
+            output='screen',
+        ),
+        Node(
+            package='transformer',
+            executable='point_cloud_transformer',
+            name='point_cloud_transformer',
+            output='screen',
+        ),
         Node(
             package='transformer',
             executable='zed_tf',

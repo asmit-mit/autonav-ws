@@ -18,10 +18,10 @@ def generate_launch_description():
         'sensor_hostname', default_value='os-122220002210.local'
     )
     declare_pointcloud_topic = DeclareLaunchArgument(
-        'pointcloud_topic', default_value='/ouster/points'
+        'pointcloud_topic', default_value='/lidar/points'
     )
     declare_imu_topic = DeclareLaunchArgument(
-        'imu_topic', default_value='/ouster/imu'
+        'imu_topic', default_value='/lidar/imu'
     )
 
     # Get package directories

@@ -22,10 +22,10 @@ def generate_launch_description():
             ],
             remappings=[
                 ('pointcloud_topic_sub', '/odom/point_cloud'),
-                ('odom_topic_sub', '/robot/dlo/odom_node/odom'),
+                ('odom_topic_sub', '/dlo/odom_node/odom'),
                 ('mask_topic_sub', '/lane_filter/mask'),
                 ('debug_cloud_pub', '/lane_filter/debug_cloud'),
-                ('map_pub', '/global_map')
+                ('map_pub', '/map')
             ]
         )
     ])

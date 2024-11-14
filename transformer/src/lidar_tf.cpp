@@ -9,7 +9,7 @@ public:
   LidarTfNode() : Node("lidar_tf") {
     pub_pointcloud_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/lidar/points", 10);
     pub_laserscan_ = this->create_publisher<sensor_msgs::msg::LaserScan>("/lidar/scan", 10);
-    pub_imu_ = this->create_publisher<sensor_msgs::msg::Imu>("lidar/imu", 10);
+    pub_imu_ = this->create_publisher<sensor_msgs::msg::Imu>("/lidar/imu", 10);
 
     sub_pointcloud_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
       "/ouster/points", 10, std::bind(&LidarTfNode::pointCloudCallback, this, std::placeholders::_1));
