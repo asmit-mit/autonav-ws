@@ -105,7 +105,7 @@ public:
         }
 
         auto goal = std::make_unique<geometry_msgs::msg::PoseStamped>();
-        goal->header.frame_id = "map";
+        goal->header.frame_id = "odom";
         goal->header.stamp = this->now();
 
         goal->pose.position.x = goals_[current_goal_index_][0];

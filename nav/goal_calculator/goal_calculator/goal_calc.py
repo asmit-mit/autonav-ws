@@ -65,7 +65,7 @@ class MapSearcher(Node):
         pose_stamped.header = odom_msg.header
         pose_stamped.pose = odom_msg.pose.pose
         try:
-            transform = self.tf_buffer.lookup_transform('map', 'odom', rclpy.time.Time())
+            transform = self.tf_buffer.lookup_transform('odom', 'odom', rclpy.time.Time())
             bot_pose_map = PoseStamped()
             bot_pose_map.pose = do_transform_pose(pose_stamped.pose, transform)
             
@@ -310,7 +310,7 @@ class MapSearcher(Node):
 
     def publish_marker(self, x, y):
         marker = Marker()
-        marker.header.frame_id = "map"
+        marker.header.frame_id = "odom"
         marker.header.stamp = self.get_clock().now().to_msg()
         marker.ns = "found_block"
         marker.id = 0
@@ -332,7 +332,7 @@ class MapSearcher(Node):
 
     def publish_goal(self, x, y):
         goal = PoseStamped()
-        goal.header.frame_id = "map"
+        goal.header.frame_id = "odom"
         goal.header.stamp = self.get_clock().now().to_msg()
         goal.pose.position.x = x
         goal.pose.position.y = y

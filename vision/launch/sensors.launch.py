@@ -27,7 +27,7 @@ def generate_launch_description():
     # Get package directories
     ouster_ros_dir = get_package_share_directory('ouster_ros')
     direct_lidar_odometry_dir = get_package_share_directory('direct_lidar_odometry')
-    zed_wrapper_dir = get_package_share_directory('zed_wrapper')
+    # zed_wrapper_dir = get_package_share_directory('zed_wrapper')
     transformer_dir = get_package_share_directory('transformer')
 
     # Include launch files with arguments
@@ -44,12 +44,12 @@ def generate_launch_description():
         }.items()
     )
 
-    zed_no_tf_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(zed_wrapper_dir, 'launch', 'zed_camera.launch.py')),
-        launch_arguments={
-            "camera_model": "zed2i"
-        }.items()
-    )
+    # zed_no_tf_launch = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(os.path.join(zed_wrapper_dir, 'launch', 'zed_camera.launch.py')),
+    #     launch_arguments={
+    #         "camera_model": "zed2i"
+    #     }.items()
+    # )
 
     transform_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(transformer_dir, 'launch', 'transform.launch.py'))
@@ -68,7 +68,7 @@ def generate_launch_description():
         declare_imu_topic,
         driver_launch,
         dlo_launch,
-        zed_no_tf_launch,
+        # zed_no_tf_launch,
         transform_launch,
         # mono_cam
     ])

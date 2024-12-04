@@ -386,7 +386,7 @@ class GoalCalculator(Node):
 
     def create_goal_pose(self, goal):
         goal_pose = PoseStamped()
-        goal_pose.header.frame_id = "map"
+        goal_pose.header.frame_id = "odom"
         goal_pose.header.stamp = self.get_clock().now().to_msg()
         goal_pose.pose.position.x = goal[0]
         goal_pose.pose.position.y = goal[1]

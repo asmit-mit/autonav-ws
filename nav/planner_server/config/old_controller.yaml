@@ -24,6 +24,7 @@ controller_server:
     # DWB parameters
     FollowPath:
       plugin: "dwb_core::DWBLocalPlanner"
+      # plugin: "nav2_theta_star_planner::ThetaStarPlanner" 
       debug_trajectory_details: True
       min_vel_x: 0.0
       min_vel_y: 0.0
@@ -84,17 +85,27 @@ local_costmap:
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
-        observation_sources: scan
-        scan:
-          topic: /lidar/scan
+        observation_sources: pointcloud
+        # scan:
+        #   topic: /lidar/scan
+        #   max_obstacle_height: 2.0
+        #   clearing: True
+        #   marking: True
+        #   data_type: "LaserScan"
+        #   raytrace_max_range: 3.0
+        #   raytrace_min_range: 0.0
+        #   obstacle_max_range: 2.5
+        #   obstacle_min_range: 0.0   
+        pointcloud:
+          topic: /lidar/points
           max_obstacle_height: 2.0
-          clearing: True
-          marking: True
-          data_type: "LaserScan"
+          clearing: true
+          marking: true
+          data_type: "PointCloud2"
           raytrace_max_range: 3.0
           raytrace_min_range: 0.0
           obstacle_max_range: 2.5
-          obstacle_min_range: 0.0      
+          obstacle_min_range: 0.9
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0

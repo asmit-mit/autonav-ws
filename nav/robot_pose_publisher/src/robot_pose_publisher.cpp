@@ -62,7 +62,7 @@ private:
         try {
             // Transform from odom to map frame
             geometry_msgs::msg::TransformStamped transform = 
-                tf_buffer_->lookupTransform("map", "odom", tf2::TimePointZero);
+                tf_buffer_->lookupTransform("odom", "odom", tf2::TimePointZero);
             
             geometry_msgs::msg::PoseStamped robot_pose_map;
             tf2::doTransform(pose_stamped, robot_pose_map, transform);

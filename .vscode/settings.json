@@ -1,0 +1,19 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/vivek/Documents/IGVC-ros2/install/ouster_sensor_msgs/local/lib/python3.10/dist-packages",
+        "/home/vivek/Documents/IGVC-ros2/install/manas_expo_nova/lib/python3.10/site-packages",
+        "/home/vivek/Documents/IGVC-ros2/install/goal_calculator/lib/python3.10/site-packages",
+        "/home/vivek/Documents/IGVC-ros2/install/direct_lidar_odometry/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/vivek/Documents/IGVC-ros2/install/ouster_sensor_msgs/local/lib/python3.10/dist-packages",
+        "/home/vivek/Documents/IGVC-ros2/install/manas_expo_nova/lib/python3.10/site-packages",
+        "/home/vivek/Documents/IGVC-ros2/install/goal_calculator/lib/python3.10/site-packages",
+        "/home/vivek/Documents/IGVC-ros2/install/direct_lidar_odometry/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "cmake.sourceDirectory": "/opt/ros/humble/src/gtest_vendor"
+}

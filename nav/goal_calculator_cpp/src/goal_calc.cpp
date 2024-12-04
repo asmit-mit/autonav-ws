@@ -567,7 +567,7 @@ class GoalCalculator : public rclcpp::Node {
         }
         geometry_msgs::msg::PoseStamped::SharedPtr create_goal_pose(Point goal) {
             auto goal_pose = std::make_shared<geometry_msgs::msg::PoseStamped>();
-            goal_pose->header.frame_id = "map";
+            goal_pose->header.frame_id = "odom";
             goal_pose->header.stamp = this->get_clock()->now();
             goal_pose->pose.position.x = goal.x;
             goal_pose->pose.position.y = goal.y;
