@@ -9,7 +9,7 @@ planner_server:
       w_euc_cost: 1.0
       w_traversal_cost: 2.0
       w_heuristic_cost: 1.0
-x
+
 global_costmap:
   global_costmap:
     ros__parameters:

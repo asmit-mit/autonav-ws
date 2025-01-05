@@ -1,13 +1,13 @@
 behavior_server:
   ros__parameters:
-    costmap_topic: local_costmap/costmap_raw
+    costmap_topic: local_costmap/costmap
     footprint_topic: local_costmap/published_footprint
     cycle_frequency: 10.0
     behavior_plugins: ["backup", "wait"]
     backup:
-      plugin: "nav2_behaviors/BackUp"
+      plugin: "nav2_behaviors::BackUp"
     wait:
-      plugin: "nav2_behaviors/Wait"
+      plugin: "nav2_behaviors::Wait"
     global_frame: odom
     robot_base_frame: base_link
     transform_timeout: 0.1
