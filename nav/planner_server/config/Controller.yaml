@@ -1,11 +1,11 @@
 controller_server:
   ros__parameters:
     use_sim_time: False  # Set to True if using simulation
-    controller_frequency: 10.0  # [5.0 - 20.0 Hz] Frequency of controller updates
+    controller_frequency: 5.0  # [5.0 - 20.0 Hz] Frequency of controller updates
     min_x_velocity_threshold: 0.001  # [0.0 - 0.01] Minimum linear velocity to consider
-    min_y_velocity_threshold: 0.5  # [0.0 - 0.5] Minimum lateral velocity to consider (not used for diff-drive)
+    # min_y_velocity_threshold: 0.5  # [0.0 - 0.5] Minimum lateral velocity to consider (not used for diff-drive)
     min_theta_velocity_threshold: 0.001  # [0.0 - 0.01] Minimum angular velocity to consider
-    failure_tolerance: 0.3  # [0.0 - 1.0] Time (seconds) to tolerate failures before re-planning
+    failure_tolerance: 0.6  # [0.0 - 1.0] Time (seconds) to tolerate failures before re-planning
 
     progress_checker_plugin: "progress_checker"  # Plugin for progress checking
     goal_checker_plugins: ["general_goal_checker"]  # Plugins for goal checking
@@ -29,21 +29,21 @@ controller_server:
       plugin: "nav2_mppi_controller::MPPIController"
       time_steps: 56  # [20 - 100] Number of time steps to predict
       model_dt: 0.05  # [0.02 - 0.1 s] Duration of each time step
-      batch_size: 2000  # [500 - 5000] Number of sampled trajectories
+      batch_size: 1000  # [500 - 5000] Number of sampled trajectories
       vx_std: 0.2  # [0.1 - 0.5] Standard deviation for linear velocity sampling
-      vy_std: 0.2  # [0.0 - 0.5] Standard deviation for lateral velocity sampling
+      # vy_std: 0.2  # [0.0 - 0.5] Standard deviation for lateral velocity sampling
       wz_std: 0.4  # [0.1 - 1.0] Standard deviation for angular velocity sampling
       vx_max: 0.5  # [0.2 - 1.0 m/s] Maximum forward velocity
       vx_min: -0.35  # [-0.5 - 0.0 m/s] Maximum reverse velocity
-      vy_max: 0.5  # [0.0 - 0.5 m/s] Maximum lateral velocity (not used for diff-drive)
+      # vy_max: 0.5  # [0.0 - 0.5 m/s] Maximum lateral velocity (not used for diff-drive)
       wz_max: 1.9  # [0.5 - 3.0 rad/s] Maximum angular velocity
-      iteration_count: 1  # [1 - 10] Number of iterations for optimization
-      prune_distance: 1.7  # [0.5 - 2.0 m] Distance to prune path segments
+      iteration_count: 3  # [1 - 10] Number of iterations for optimization
+      prune_distance: 0.5  # [0.5 - 2.0 m] Distance to prune path segments
       transform_tolerance: 0.1  # [0.05 - 0.5 s] Tolerance for transform lookup
       temperature: 0.3  # [0.1 - 1.0] Exploration temperature for sampling
       gamma: 0.015  # [0.01 - 0.05] Discount factor for future costs
       motion_model: "DiffDrive"  # Motion model ("DiffDrive", "Ackermann", etc.)
-      visualize: false  # Enable visualization for debugging
+      visualize: True  # Enable visualization for debugging
       TrajectoryVisualizer:
         trajectory_step: 5  # Step between visualized points
         time_step: 3  # Time interval between visualized trajectories
@@ -115,7 +115,7 @@ local_costmap:
 
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
-        map_subscribe_transient_local: True
+        map_subscribe_transient_local: false
         enabled: true  # Enable static map
         subscribe_to_updates: true  # Update map dynamically
 
