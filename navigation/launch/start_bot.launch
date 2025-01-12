@@ -1,8 +1,5 @@
-<?xml version="1.0"?>
-
+<?xml version="1.0" encoding="UTF-8"?>
 <launch>
-
-  <include file="$(find vision)/launch/vision.launch" />
-  <!-- <include file="$(find navigation)/launch/auto_nav.launch" /> -->
-
+  <include file="$(find vision)/launch/vision.launch"></include>
+  <include file="$(find navigation)/launch/auto_nav.launch"></include>
 </launch>

@@ -27,14 +27,14 @@ class LaneFilterer:
         self.bridge = CvBridge()
 
     def make_image_brighter(self, image, target_v):
-        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV) 
+        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         h, s, v = cv2.split(hsv_image)
         avg_v = np.mean(v)
         scale_factor = target_v / avg_v if avg_v > 0 else 1
         v = np.clip(v * scale_factor, 0, 255).astype(np.uint8)
         adjusted_hsv = cv2.merge((h, s, v))
         brighter_image = cv2.cvtColor(adjusted_hsv, cv2.COLOR_HSV2BGR)
-    
+
         return brighter_image
 
     def image_callback(self, msg):
@@ -44,12 +44,12 @@ class LaneFilterer:
         except CvBridgeError as e:
             rospy.logerr("Could not convert image: %s", e)
             return
-        
+
         brighter_bgr_image = self.make_image_brighter(cv_image, self.target_v)
 
         # gray_image = cv2.cvtColor(brighter_bgr_image, cv2.COLOR_BGR2GRAY)
         # # blur_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
-        # canny_image = cv2.Canny(gray_image, 50, 150) 
+        # canny_image = cv2.Canny(gray_image, 50, 150)
         #
         # kernel = np.ones((1,1), np.uint8)
         # # canny_image = cv2.dilate(canny_image, kernel=kernel, iterations=1)
@@ -69,9 +69,9 @@ class LaneFilterer:
         upper_white = np.array([self.hh, self.hs, self.hv])
         mask = cv2.inRange(hsv_image, lower_white, upper_white)
 
-        kernel = np.ones((5, 5), np.uint8)
-        mask = cv2.erode(mask, kernel=kernel, iterations=2)
-        mask = cv2.dilate(mask, kernel=kernel, iterations=2)
+        kernel = np.ones((7, 7), np.uint8)
+        mask = cv2.erode(mask, kernel=kernel, iterations=1)
+        mask = cv2.dilate(mask, kernel=kernel, iterations=1)
 
         try:
             mask_msg = self.bridge.cv2_to_imgmsg(mask, encoding="mono8")

@@ -26,7 +26,7 @@ class HSVFilterNode:
         rospy.sleep(1)
 
         self.image_sub = rospy.Subscriber(
-            "lane_filter/mask",
+            "/zed_node/rgb/image_rect_color",
             Image,
             self.image_callback,
             queue_size=10,
@@ -66,13 +66,26 @@ class HSVFilterNode:
             ]
         )
 
+    def make_image_brighter(self, image, target_v):
+        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv_image)
+        avg_v = np.mean(v)
+        scale_factor = target_v / avg_v if avg_v > 0 else 1
+        v = np.clip(v * scale_factor, 0, 255).astype(np.uint8)
+        adjusted_hsv = cv2.merge((h, s, v))
+        brighter_image = cv2.cvtColor(adjusted_hsv, cv2.COLOR_HSV2BGR)
+
+        return brighter_image
+
     def image_callback(self, msg):
         try:
             self.image_received = True
 
             cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
 
-            hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
+            brighter_bgr_image = self.make_image_brighter(cv_image, 140)
+
+            hsv_image = cv2.cvtColor(brighter_bgr_image, cv2.COLOR_BGR2HSV)
 
             self.update_hsv_values()
 

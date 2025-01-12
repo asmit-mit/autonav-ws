@@ -2,8 +2,8 @@ DWAPlannerROS:
   # Robot Configuration Parameters
   max_vel_trans: 2.0 # Maximum translational velocity
   min_vel_trans: 0.1 # Minimum translational velocity
-  max_vel_x: 0.9 # Maximum velocity in x-direction
-  min_vel_x: 0.5 # Minimum velocity in x-direction
+  max_vel_x: 1.1 # Maximum velocity in x-direction
+  min_vel_x: 0.6 # Minimum velocity in x-direction
   max_vel_y: 0.0 # Maximum velocity in y-direction (set to zero for non-holonomic robots)
   min_vel_y: 0.0 # Minimum velocity in y-direction (set to zero for non-holonomic robots)
   max_vel_theta: 0.8 # Maximum rotational velocity

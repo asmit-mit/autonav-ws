@@ -1,3 +1,4 @@
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cv_bridge/cv_bridge.h>
@@ -16,6 +17,7 @@
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <thread>
 #include <unordered_map>
 #include <visualization_msgs/Marker.h>
 
@@ -300,7 +302,7 @@ public:
   }
 
   void run() {
-    ros::Rate loop_rate(50);
+    ros::Rate loop_rate(20);
     nav_msgs::OccupancyGrid map;
 
     map.info.resolution = grid_.resolution;
@@ -330,6 +332,7 @@ int main(int argc, char **argv) {
 
   ROS_INFO("PointCloud Mapper Node Started.");
 
+  std::this_thread::sleep_for(std::chrono::seconds(30));
   PCMapper mapper;
   mapper.run();
 
