@@ -435,9 +435,14 @@ void processGoal() {
             goal_cell = last_goal_cell;
           }
 
+          int angle = 90;
+          if (current_pose.yaw < 0) {
+            angle = -1 * angle;
+          }
+
           GridCell goal_cell_e;
-          goal_cell_e.x = goal_cell.x + 30 * cos(current_pose.yaw + 0);
-          goal_cell_e.y = goal_cell.y + 30 * sin(current_pose.yaw + 0);
+          goal_cell_e.x = goal_cell.x + 120 * cos(current_pose.yaw + 0);
+          goal_cell_e.y = goal_cell.y + 120 * sin(current_pose.yaw + 0);
 
           Point goal_point = gridToPoint(goal_cell_e, current_map);
           publishMarker(goal_point.x, goal_point.y, 1);

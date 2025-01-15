@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <launch>
-    <node name="teleop_control_node" pkg="manas_expo_nova" type="teleop_control.py" output="screen"/>
-    <!--<node name="teleop_keyboard" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py"/>-->
+  <node name="teleop_control_node" output="screen" pkg="teleop_controller" type="teleop_control.py"></node>
+  <!--<node name="teleop_keyboard" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py"/>-->
 </launch>
