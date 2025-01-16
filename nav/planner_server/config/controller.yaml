@@ -23,7 +23,7 @@ controller_server:
     # my_PARAMETERS
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
-      time_steps: 20 #56
+      time_steps: 56
       model_dt: 0.1
       batch_size: 1000
       vx_std: 0.2
@@ -34,17 +34,17 @@ controller_server:
       vy_max: 0.26
       wz_max: 1.9
       wz_min: -1.9
-      ax_max: 3.0
-      ax_min: -3.0
-      ay_max: 3.0
-      az_max: 3.5
+      # ax_max: 3.0
+      # ax_min: -3.0
+      # ay_max: 3.0
+      # az_max: 3.5
       iteration_count: 1
       prune_distance: 1.7
-      transform_tolerance: 0.1
+      transform_tolerance: 0.3
       temperature: 0.3
       gamma: 0.015
       motion_model: "DiffDrive"
-      visualize: true
+      visualize: false
       reset_period: 1.0
       regenerate_noises: False
 
