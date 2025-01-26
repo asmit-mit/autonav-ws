@@ -1,8 +1,8 @@
 local_costmap:
   global_frame: robot/odom
   robot_base_frame: robot/base_link
-  update_frequency: 5.0
-  publish_frequency: 5.0
+  update_frequency: 20.0
+  publish_frequency: 30.0
   static_map: false
   rolling_window: true
   width: 5.0
@@ -39,7 +39,7 @@ local_costmap:
     lethal_cost_threshold: 100
 
   inflation_layer:
-    inflation_radius: 0.55
+    inflation_radius: 0.45
     cost_scaling_factor: 20.0
 
   obstacle_layer:
@@ -51,7 +51,7 @@ local_costmap:
       marking: true
       clearing: true
       max_obstacle_height: 2.0
-      min_obstacle_height: 0.3
+      min_obstacle_height: 0.4
       obstacle_range: 5.0
       raytrace_range: 5.0
       observation_persistance: 0.2

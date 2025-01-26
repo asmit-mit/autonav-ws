@@ -1,0 +1,9 @@
+[submodule "ouster-ros"]
+	path = ouster-ros
+	url = https://github.com/ouster-lidar/ouster-ros.git
+[submodule "direct_lidar_odometry"]
+	path = direct_lidar_odometry
+	url = https://github.com/vectr-ucla/direct_lidar_odometry.git
+[submodule "zed-ros-wrapper"]
+	path = zed-ros-wrapper
+	url = https://github.com/stereolabs/zed-ros-wrapper.git
