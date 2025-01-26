@@ -15,7 +15,7 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <unordered_map>
 #include <visualization_msgs/msg/marker.hpp>
 
@@ -51,6 +51,7 @@ private:
 
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr map_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr debug_cloud_pub_;
+
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_sub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr mask_sub_;
@@ -79,7 +80,9 @@ private:
   pcl::PointCloud<pcl::PointXYZ>::Ptr obstacle_cloud_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr free_cloud_;
 
-  float probToLogOdds(float prob) { return log(prob / (1.0 - prob)); }
+  float probToLogOdds(float prob) { 
+    return log(prob / (1.0 - prob)); 
+  }
 
   float logOddsToProb(float logOdds) {
     return 1.0 - (1.0 / (1.0 + exp(logOdds)));
@@ -87,10 +90,8 @@ private:
 
   GridCell globalPointToPixelIndex(const GlobalPoint &global_point,
                                    const OccupancyGrid &grid) {
-    int x = static_cast<int>(
-        round((global_point.x - grid.origin_x) / grid.resolution));
-    int y = static_cast<int>(
-        round((global_point.y - grid.origin_y) / grid.resolution));
+    int x = static_cast<int>(round((global_point.x - grid.origin_x) / grid.resolution));
+    int y = static_cast<int>(round((global_point.y - grid.origin_y) / grid.resolution));
     return {x, y};
   }
 
@@ -317,8 +318,9 @@ public:
         std::chrono::milliseconds(20), std::bind(&PCMapper::timerCallback, this));
   }
 
+  nav_msgs::msg::OccupancyGrid map;
+
   void timerCallback() {
-    nav_msgs::msg::OccupancyGrid map;
 
     map.info.resolution = grid_.resolution;
     map.info.width = grid_.width;
@@ -330,7 +332,7 @@ public:
     map.data.resize(grid_.width * grid_.height, -1);
 
     map.header.stamp = this->get_clock()->now();
-    map.header.frame_id = "odom";
+    map.header.frame_id = "map";
 
     updateMap(map);
     map_pub_->publish(map);
