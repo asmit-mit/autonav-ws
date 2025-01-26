@@ -60,7 +60,7 @@ global_costmap:
           durability: VOLATILE
       update_frequency: 1.0
       publish_frequency: 1.0
-      global_frame: odom
+      global_frame: map
       robot_base_frame: base_link
       width: 10
       height: 10
@@ -68,6 +68,8 @@ global_costmap:
       robot_radius: 0.35
       resolution: 0.06
       track_unknown_space: true
+      always_send_full_costmap: True
+      footprint_padding: 0.04
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"] # , "voxel_layer"]
 
       static_layer:
@@ -132,7 +134,6 @@ global_costmap:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 0.50
         inflation_radius: 0.350
-      always_send_full_costmap: True
 
 # global_costmap:
 #   global_costmap:

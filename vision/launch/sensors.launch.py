@@ -26,7 +26,8 @@ def generate_launch_description():
 
     # Get package directories
     ouster_ros_dir = get_package_share_directory('ouster_ros')
-    direct_lidar_odometry_dir = get_package_share_directory('direct_lidar_odometry')
+    direct_lidar_inertial_odometry_dir = get_package_share_directory('direct_lidar_inertial_odometry')
+    direct_lidar_odometry_dir= get_package_share_directory('direct_lidar_odometry')
     # zed_wrapper_dir = get_package_share_directory('zed_wrapper')
     transformer_dir = get_package_share_directory('transformer')
 
@@ -36,6 +37,14 @@ def generate_launch_description():
         output='screen'
     )
 
+    # dlo_launch = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(os.path.join(direct_lidar_inertial_odometry_dir, 'launch', 'dlio.launch.py')),
+    #     launch_arguments={
+    #         'rviz': 'false',
+    #         'pointcloud_topic': pointcloud_topic,
+    #         'imu_topic': imu_topic
+    #     }.items()
+    # )
     dlo_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(direct_lidar_odometry_dir, 'launch', 'dlo.launch.py')),
         launch_arguments={
