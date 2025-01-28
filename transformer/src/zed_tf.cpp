@@ -4,9 +4,14 @@
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <deque>
 
 ros::Publisher imu_pub;
 tf2_ros::TransformBroadcaster *tf_broadcaster;
+
+std::deque<double> roll_history;
+const size_t ROLL_WINDOW_SIZE = 10;
+double roll_sum = 0.0; 
 
 void imuCallBack(const sensor_msgs::Imu::ConstPtr &msg) {
   geometry_msgs::TransformStamped transform_stamped;
@@ -21,11 +26,18 @@ void imuCallBack(const sensor_msgs::Imu::ConstPtr &msg) {
   double roll, pitch, yaw;
   tf2::Matrix3x3(imu_orientation).getRPY(roll, pitch, yaw);
 
-  yaw = 0;
-  roll = 0;
+  roll_history.push_back(roll);
+  roll_sum += roll;
+
+  if (roll_history.size() > ROLL_WINDOW_SIZE) {
+    roll_sum -= roll_history.front();
+    roll_history.pop_front();
+  }
+
+  double smoothed_roll = roll_sum / roll_history.size();
 
   tf2::Quaternion corrected_orientation;
-  corrected_orientation.setRPY(roll, pitch, yaw);
+  corrected_orientation.setRPY(smoothed_roll, 0, 0);
 
   transform_stamped.transform.rotation.x = corrected_orientation.x();
   transform_stamped.transform.rotation.y = corrected_orientation.y();

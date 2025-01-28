@@ -32,7 +32,7 @@ local_costmap:
     - { name: inflation_layer, type: "costmap_2d::InflationLayer" }
 
   static_layer:
-    map_topic: /global_map
+    map_topic: nav/global_map
     map_type: occupancy
     subscribe_to_updates: true
     static_map_cost_scale: 70.0

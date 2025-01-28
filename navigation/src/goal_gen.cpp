@@ -481,9 +481,9 @@ int main(int argc, char **argv) {
 
   goal_pub =
       nh.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
-  marker_pub = nh.advertise<visualization_msgs::Marker>("/local_goal", 10);
+  marker_pub = nh.advertise<visualization_msgs::Marker>("nav/local_goal", 10);
 
-  ros::Subscriber map_sub = nh.subscribe("/global_map", 1, mapCallback);
+  ros::Subscriber map_sub = nh.subscribe("nav/global_map", 1, mapCallback);
   ros::Subscriber odom_sub =
       nh.subscribe("robot/dlo/odom_node/odom", 1, odomCallback);
   // ros::Subscriber global_goal_sub = nh.subscribe("/goal", 1,

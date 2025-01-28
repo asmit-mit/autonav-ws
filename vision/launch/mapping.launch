@@ -18,6 +18,6 @@
         <remap from="odom_topic_sub" to="/robot/dlo/odom_node/odom" />
         <remap from="mask_topic_sub" to="/lane_filter/mask" />
         <remap from="debug_cloud_pub" to="/lane_filter/debug_cloud" />
-        <remap from="map_pub" to="/global_map" />
+        <remap from="map_pub" to="/nav/global_map" />
     </node>
 </launch>
