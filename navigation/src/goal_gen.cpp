@@ -1,4 +1,5 @@
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
@@ -6,6 +7,7 @@
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_ros/transform_listener.h>
 #include <visualization_msgs/Marker.h>
 
 #include <algorithm>
@@ -75,6 +77,12 @@ atomic<bool> map_received(false);
 ros::Publisher marker_pub;
 ros::Publisher goal_pub;
 
+ros::Time last_map_time;
+ros::Time last_odom_time;
+const double TIMEOUT_DURATION = 2.0;
+tf2_ros::Buffer tfBuffer;
+tf2_ros::TransformListener *tfListener = nullptr;
+
 mutex map_mutex;
 mutex pose_mutex;
 
@@ -90,6 +98,38 @@ Goal current_goal;
 
 ros::Time start_time;
 ros::Time end_time;
+
+bool checkTransforms() {
+  try {
+    geometry_msgs::TransformStamped transformStamped = tfBuffer.lookupTransform(
+        "robot/base_link", "zed2i_base_link", ros::Time(0), ros::Duration(1.0));
+    return true;
+  } catch (tf2::TransformException &ex) {
+    ROS_WARN(
+        "Could not get transform from robot/base_link to zed2i_base_link: %s",
+        ex.what());
+    return false;
+  }
+}
+
+bool checkTopicsHealth() {
+  ros::Time current_time = ros::Time::now();
+  bool topics_healthy = true;
+
+  if ((current_time - last_map_time).toSec() > TIMEOUT_DURATION) {
+    ROS_WARN_THROTTLE(5.0, "No map data received for %.2f seconds",
+                      (current_time - last_map_time).toSec());
+    topics_healthy = false;
+  }
+
+  if ((current_time - last_odom_time).toSec() > TIMEOUT_DURATION) {
+    ROS_WARN_THROTTLE(5.0, "No odometry data received for %.2f seconds",
+                      (current_time - last_odom_time).toSec());
+    topics_healthy = false;
+  }
+
+  return topics_healthy;
+}
 
 inline int gridToIndex(int x, int y, int width) { return y * width + x; }
 
@@ -204,6 +244,8 @@ exploreFarthestParallel(const unordered_set<GridCell, GridCellHash> &cluster,
 }
 
 void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg) {
+  last_map_time = ros::Time::now();
+
   lock_guard<mutex> lock(map_mutex);
 
   if (!map_received) {
@@ -239,6 +281,7 @@ void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg) {
 }
 
 void odomCallback(const nav_msgs::Odometry::ConstPtr &msg) {
+  last_odom_time = ros::Time::now();
   lock_guard<mutex> lock(pose_mutex);
 
   current_pose.world_position.x = msg->pose.pose.position.x;
@@ -293,7 +336,6 @@ void publishGoal(double x, double y, double yaw) {
   goal.pose.position.y = y;
   goal.pose.position.z = 0.0;
 
-  // Convert yaw to quaternion
   tf2::Quaternion q;
   q.setRPY(0, 0, yaw);
   goal.pose.orientation.x = q.x();
@@ -306,79 +348,23 @@ void publishGoal(double x, double y, double yaw) {
 
 void processGoal() {
   while (ros::ok()) {
+    if (!checkTransforms()) {
+      ROS_WARN_THROTTLE(
+          5.0, "Goal generation paused: waiting for required transforms");
+      this_thread::sleep_for(chrono::seconds(1));
+      continue;
+    }
+
+    if (!checkTopicsHealth()) {
+      ROS_WARN_THROTTLE(5.0,
+                        "Goal generation paused: waiting for required topics");
+      this_thread::sleep_for(chrono::seconds(1));
+      continue;
+    }
+
     if (odom_received && map_received) {
       GridCell goal_cell;
       GridCell closest_lane_cell;
-
-      // double global_goal_dist = distancePoint(current_pose.world_position,
-      // current_goal.pose); if (current_goal.counter == 1 && global_goal_dist <
-      // 15 && switch_one == false) {
-      //     paused = true;
-      //     switch_one = true;
-      //
-      //     for (size_t i = 0; i < ignored_cells.size(); i++) {
-      //         for (size_t j = 600; j < ignored_cells.at(0).size(); j++) {
-      //             ignored_cells.at(i).at(j) = true;
-      //         }
-      //     }
-      //
-      //     // cout << "top half is not ignored" << endl;
-      // }
-      //
-      // // Point test = {-4.813397850951263, 10.01533066110384};
-      //
-      // // GridCell tes = pointToGrid(test, current_map);
-      //
-      // // cout << tes.x << " " << tes.y << endl;
-      //
-      // if(switch_one && !switch_two){
-      //     // cout << "inside no mans land" << endl;
-      //     publishGoal(current_goal.pose.x, current_goal.pose.y, 1);
-      //     if(current_goal.counter == 4 && distancePoint(current_goal.pose,
-      //     current_pose.world_position) <= 2) {
-      //         paused = false;
-      //         switch_two = true;
-      //
-      //         // cout << "exited no mans land" << endl;
-      //
-      //         last_goal_cell = GridCell(-1, -1);
-      //     }
-      // }
-      //
-      // Point final_pt = {-12.3709185, -23.195704};
-      // Point end_course = {-0.143247067, -23.5012827};
-      //
-      // if(switch_two && distancePoint(current_pose.world_position, final_pt) <
-      // 4) {
-      //     paused = true;
-      //     publish_final_goal = true;
-      // }
-      //
-      // if (publish_final_goal) {
-      //     publishGoal(end_course.x, end_course.y, -1);
-      //
-      //     if(distancePoint(current_pose.world_position, end_course) < 2 &&
-      //     !stop_node) {
-      //         final_goal_reached = true;
-      //         end_time = ros::Time::now();
-      //
-      //         ros::Duration time_taken = end_time - start_time;
-      //         ROS_INFO("==========================================");
-      //         ROS_INFO("FINAL GOAL REACHED!");
-      //         ROS_INFO_STREAM("Time taken to complete the course: " <<
-      //         time_taken.toSec() << " seconds");
-      //         ROS_INFO("==========================================");
-      //
-      //         ros::Duration(1.0).sleep();
-      //
-      //         stop_node = true;
-      //         publish_final_goal = false;
-      //     }
-      // }
-      //
-      // // cout << current_pose.world_position.x << " " <<
-      // current_pose.world_position.y << endl;
-      // // cout << current_goal.x << " " << current_goal.y << endl;
 
       if (true) {
         {
@@ -475,38 +461,61 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "goal_gen");
   ros::NodeHandle nh;
 
-  ROS_INFO("Goal Gen Started.");
+  try {
+    tfListener = new tf2_ros::TransformListener(tfBuffer);
 
-  start_time = ros::Time::now();
+    ros::Duration(1.0).sleep();
 
-  goal_pub =
-      nh.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
-  marker_pub = nh.advertise<visualization_msgs::Marker>("nav/local_goal", 10);
+    if (!checkTransforms()) {
+      ROS_ERROR("Required transforms not available. Shutting down.");
+      delete tfListener;
+      return 1;
+    }
 
-  ros::Subscriber map_sub = nh.subscribe("nav/global_map", 1, mapCallback);
-  ros::Subscriber odom_sub =
-      nh.subscribe("robot/dlo/odom_node/odom", 1, odomCallback);
-  // ros::Subscriber global_goal_sub = nh.subscribe("/goal", 1,
-  // globalGoalCallback);
+    ROS_INFO("Goal Gen Started.");
 
-  thread goal_thread(processGoal);
+    start_time = ros::Time::now();
+    last_map_time = ros::Time::now();
+    last_odom_time = ros::Time::now();
 
-  ros::spin();
+    goal_pub =
+        nh.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
+    marker_pub = nh.advertise<visualization_msgs::Marker>("nav/local_goal", 10);
 
-  goal_thread.join();
+    ros::Subscriber map_sub = nh.subscribe("nav/global_map", 1, mapCallback);
+    ros::Subscriber odom_sub =
+        nh.subscribe("robot/dlo/odom_node/odom", 1, odomCallback);
+    // ros::Subscriber global_goal_sub = nh.subscribe("/goal", 1,
+    // globalGoalCallback);
 
-  // if (final_goal_reached) {
-  //     ros::Duration time_taken = ros::Time::now() - start_time;
-  //     ROS_INFO("==========================================");
-  //     ROS_INFO("Final time (printed from main):");
-  //     ROS_INFO_STREAM("Time taken to complete the course: " <<
-  //     time_taken.toSec() << " seconds");
-  //     ROS_INFO("==========================================");
-  // } else {
-  //     ROS_WARN("Goal Gen node shutting down before reaching final goal.");
-  //     ROS_INFO_STREAM("Total runtime: " << (ros::Time::now() -
-  //     start_time).toSec() << " seconds");
-  // }
+    thread goal_thread(processGoal);
 
-  return 0;
+    ros::spin();
+
+    goal_thread.join();
+
+    // if (final_goal_reached) {
+    //   ros::Duration time_taken = ros::Time::now() - start_time;
+    //   ROS_INFO("==========================================");
+    //   ROS_INFO("Final time (printed from main):");
+    //   ROS_INFO_STREAM("Time taken to complete the course: "
+    //                   << time_taken.toSec() << " seconds");
+    //   ROS_INFO("==========================================");
+    // } else {
+    //   ROS_WARN("Goal Gen node shutting down before reaching final goal.");
+    //   ROS_INFO_STREAM("Total runtime: "
+    //                   << (ros::Time::now() - start_time).toSec() << "
+    //                   seconds");
+    // }
+
+    delete tfListener;
+    return 0;
+
+  } catch (const std::exception &e) {
+    ROS_ERROR_STREAM("Exception in goal_gen: " << e.what());
+    if (tfListener) {
+      delete tfListener;
+    }
+    return 1;
+  }
 }

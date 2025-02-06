@@ -37,7 +37,7 @@ TebLocalPlannerROS:
   no_inner_iterations: 5
   no_outer_iterations: 4
   optimization_activate: True
-  optimization_verbose: True
+  optimization_verbose: False
   penalty_epsilon: 0.1
   weight_max_vel_x: 40.0
   weight_max_vel_theta: 1.0
@@ -64,4 +64,3 @@ TebLocalPlannerROS:
 
   # Miscellaneous
   global_plan_prune_distance: 1.0
-  publish_feedback: True

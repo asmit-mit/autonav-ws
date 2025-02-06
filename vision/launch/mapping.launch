@@ -1,23 +1,29 @@
 <?xml version="1.0"?>
 <launch>
-    <!-- PC Mapper Node -->
+    <!-- PCMapper Node -->
     <node pkg="vision" type="pc_mapper_node" name="pc_mapper_node" output="screen">
-        <!-- Parameters -->
-        <param name="prior" value="0.5" />
-        <param name="prob_hit" value="0.8" />
-        <param name="prob_miss" value="0.2" />
-        <param name="min_prob" value="0.05" />
-        <param name="max_prob" value="0.99" />
-        <param name="obstacle_threshold" value="0.75" />
-        <param name="octree_resolution" value="0.01" />
-        <param name="resolution" value="0.01" />
-        <param name="width" value="3500" />
-        <param name="height" value="3500" />
-
+        <!-- Topic Remappings -->
         <remap from="pointcloud_topic_sub" to="/nav/point_cloud" />
         <remap from="odom_topic_sub" to="/robot/dlo/odom_node/odom" />
         <remap from="mask_topic_sub" to="/lane_filter/mask" />
-        <remap from="debug_cloud_pub" to="/lane_filter/debug_cloud" />
         <remap from="map_pub" to="/nav/global_map" />
+        <remap from="debug_cloud_pub" to="/lane_filter/debug_cloud" />
+
+        <param name="~prior" value="0.5" />
+        <param name="~prob_hit" value="0.8" />
+        <param name="~prob_miss" value="0.2" />
+        <param name="~min_prob" value="0.12" />
+        <param name="~max_prob" value="0.99" />
+        <param name="~obstacle_threshold" value="0.55" />
+        
+        <param name="~resolution" value="0.03" />
+        
+        <param name="~width" value="2000" />
+        <param name="~height" value="2000" />
+        
+        <!-- <param name="~topic_timeout" value="1.0" /> -->
+        
+        <!-- <param name="~base_link_frame" value="robot/base_link" /> -->
+        <!-- <param name="~camera_frame" value="zed2i_base_link" /> -->
     </node>
 </launch>

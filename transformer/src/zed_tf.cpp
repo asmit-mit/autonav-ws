@@ -1,65 +1,106 @@
+#include <deque>
 #include <geometry_msgs/TransformStamped.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_ros/transform_broadcaster.h>
-#include <deque>
 
-ros::Publisher imu_pub;
-tf2_ros::TransformBroadcaster *tf_broadcaster;
+class ImuTransformer {
+public:
+  ImuTransformer() : received_imu(false), running_sum(0.0), window_size(30) {
+    ros::NodeHandle nh;
 
-std::deque<double> roll_history;
-const size_t ROLL_WINDOW_SIZE = 10;
-double roll_sum = 0.0; 
+    imu_sub = nh.subscribe("/zed_node/imu/data", 10,
+                           &ImuTransformer::imuCallback, this);
 
-void imuCallBack(const sensor_msgs::Imu::ConstPtr &msg) {
-  geometry_msgs::TransformStamped transform_stamped;
+    tf_broadcaster = new tf2_ros::TransformBroadcaster();
 
-  transform_stamped.header.stamp = ros::Time::now();
-  transform_stamped.header.frame_id = "robot/base_link";
-  transform_stamped.child_frame_id = "zed2i_base_link";
+    monitor_timer = nh.createTimer(ros::Duration(0.5),
+                                   &ImuTransformer::monitorCallback, this);
 
-  tf2::Quaternion imu_orientation(msg->orientation.x, msg->orientation.y,
-                                  msg->orientation.z, msg->orientation.w);
+    last_imu_time = ros::Time::now();
 
-  double roll, pitch, yaw;
-  tf2::Matrix3x3(imu_orientation).getRPY(roll, pitch, yaw);
-
-  roll_history.push_back(roll);
-  roll_sum += roll;
-
-  if (roll_history.size() > ROLL_WINDOW_SIZE) {
-    roll_sum -= roll_history.front();
-    roll_history.pop_front();
+    ROS_INFO("IMU Transformer initialized. Waiting for data...");
   }
 
-  double smoothed_roll = roll_sum / roll_history.size();
+  ~ImuTransformer() { delete tf_broadcaster; }
 
-  tf2::Quaternion corrected_orientation;
-  corrected_orientation.setRPY(smoothed_roll, 0, 0);
+private:
+  void imuCallback(const sensor_msgs::Imu::ConstPtr &msg) {
+    received_imu = true;
+    last_imu_time = ros::Time::now();
 
-  transform_stamped.transform.rotation.x = corrected_orientation.x();
-  transform_stamped.transform.rotation.y = corrected_orientation.y();
-  transform_stamped.transform.rotation.z = corrected_orientation.z();
-  transform_stamped.transform.rotation.w = corrected_orientation.w();
+    geometry_msgs::TransformStamped transform_stamped;
+    transform_stamped.header.stamp = ros::Time::now();
+    transform_stamped.header.frame_id = "robot/base_link";
+    transform_stamped.child_frame_id = "zed2i_base_link";
 
-  transform_stamped.transform.translation.x = -0.114;
-  transform_stamped.transform.translation.y = 0.0;
-  transform_stamped.transform.translation.z = 1.32;
+    tf2::Quaternion imu_orientation(msg->orientation.x, msg->orientation.y,
+                                    msg->orientation.z, msg->orientation.w);
 
-  tf_broadcaster->sendTransform(transform_stamped);
-}
+    double roll, pitch, yaw;
+    tf2::Matrix3x3(imu_orientation).getRPY(roll, pitch, yaw);
+
+    if (pitch_window.size() >= window_size) {
+      running_sum -= pitch_window.front();
+      pitch_window.pop_front();
+    }
+    pitch_window.push_back(pitch);
+    running_sum += pitch;
+
+    double avg_pitch = running_sum / pitch_window.size();
+
+    tf2::Quaternion corrected_orientation;
+    corrected_orientation.setRPY(0.0, avg_pitch, 0.0);
+
+    transform_stamped.transform.rotation.x = corrected_orientation.x();
+    transform_stamped.transform.rotation.y = corrected_orientation.y();
+    transform_stamped.transform.rotation.z = corrected_orientation.z();
+    transform_stamped.transform.rotation.w = corrected_orientation.w();
+    transform_stamped.transform.translation.x = -0.114;
+    transform_stamped.transform.translation.y = 0.0;
+    transform_stamped.transform.translation.z = 1.32;
+
+    tf_broadcaster->sendTransform(transform_stamped);
+  }
+
+  void monitorCallback(const ros::TimerEvent &) {
+    ros::Time current_time = ros::Time::now();
+
+    if (!received_imu) {
+      ROS_WARN_THROTTLE(
+          5.0, "No IMU data has been received yet from /zed_node/imu/data");
+    } else {
+      double time_since_last_imu = (current_time - last_imu_time).toSec();
+      if (time_since_last_imu > 1.0) {
+        ROS_WARN_THROTTLE(5.0, "No IMU data received for %.1f seconds",
+                          time_since_last_imu);
+      }
+    }
+
+    if (received_imu && pitch_window.size() < window_size) {
+      ROS_WARN_THROTTLE(5.0,
+                        "Pitch averaging window not yet full (%zu/%zu samples)",
+                        pitch_window.size(), window_size);
+    }
+  }
+
+  ros::Subscriber imu_sub;
+  tf2_ros::TransformBroadcaster *tf_broadcaster;
+
+  ros::Timer monitor_timer;
+  ros::Time last_imu_time;
+  bool received_imu;
+
+  std::deque<double> pitch_window;
+  double running_sum;
+  const size_t window_size;
+};
 
 int main(int argc, char *argv[]) {
   ros::init(argc, argv, "zed_tf");
-  ros::NodeHandle nh;
-
-  tf_broadcaster = new tf2_ros::TransformBroadcaster();
-
-  ros::Subscriber imu_sub = nh.subscribe("/zed_node/imu/data", 10, imuCallBack);
-
+  ImuTransformer transformer;
   ros::spin();
-  delete tf_broadcaster;
   return 0;
 }

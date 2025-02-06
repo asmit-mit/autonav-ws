@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cv_bridge/cv_bridge.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <mutex>
 #include <nav_msgs/OccupancyGrid.h>
 #include <nav_msgs/Odometry.h>
@@ -17,6 +18,8 @@
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 #include <thread>
 #include <unordered_map>
 #include <visualization_msgs/Marker.h>
@@ -52,6 +55,7 @@ private:
   };
 
   ros::NodeHandle nh_;
+  ros::NodeHandle private_nh_{"~"};
   ros::Publisher map_pub_;
   ros::Publisher marker_pub_;
   ros::Publisher pc_pub_;
@@ -82,6 +86,9 @@ private:
   pcl::octree::OctreePointCloud<pcl::PointXYZ> free_octree_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr obstacle_cloud_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr free_cloud_;
+
+  tf2_ros::Buffer tf_buffer;
+  tf2_ros::TransformListener tf_listener(tf_buffer);
 
   float probToLogOdds(float prob) { return log(prob / (1.0 - prob)); }
 
@@ -180,7 +187,7 @@ private:
           if (mask_value > 127) {
             obstacle_cloud_->push_back(pcl_point);
           } else {
-            if (i % 4 == 0) {
+            if (i % 10 == 0) {
               free_cloud_->push_back(pcl_point);
             }
           }
@@ -264,16 +271,16 @@ private:
   }
 
   void loadParameters() {
-    nh_.param<float>("prior", prior_, 0.5);
-    nh_.param<float>("prob_hit", prob_hit_, 0.6);
-    nh_.param<float>("prob_miss", prob_miss_, 0.3);
-    nh_.param<float>("min_prob", min_prob_, 0.12);
-    nh_.param<float>("max_prob", max_prob_, 0.97);
-    nh_.param<float>("obstacle_threshold", obstacle_thresh_, 0.6);
-    nh_.param<float>("octree_resolution", octree_resolution_, 0.01);
-    nh_.param<double>("resolution", resolution_, 0.01);
-    nh_.param<int>("width", width_, 3500);
-    nh_.param<int>("height", height_, 3500);
+    private_nh_.param<float>("prior", prior_, 0.5);
+    private_nh_.param<float>("prob_hit", prob_hit_, 0.6);
+    private_nh_.param<float>("prob_miss", prob_miss_, 0.3);
+    private_nh_.param<float>("min_prob", min_prob_, 0.12);
+    private_nh_.param<float>("max_prob", max_prob_, 0.97);
+    private_nh_.param<float>("obstacle_threshold", obstacle_thresh_, 0.6);
+    private_nh_.param<float>("octree_resolution", octree_resolution_, 0.01);
+    private_nh_.param<double>("resolution", resolution_, 0.01);
+    private_nh_.param<int>("width", width_, 3500);
+    private_nh_.param<int>("height", height_, 3500);
   }
 
 public:
@@ -315,11 +322,20 @@ public:
     map.data.resize(grid_.width * grid_.height, -1);
 
     while (ros::ok()) {
-      map.header.stamp = ros::Time::now();
-      map.header.frame_id = "robot/odom";
+      try {
+        geometry_msgs::TransformStamped transformStamped =
+            tf_buffer.lookupTransform("robot/base_link", "zed2i_camera_center",
+                                      ros::Time(0), ros::Duration(1.0));
 
-      updateMap(map);
-      map_pub_.publish(map);
+        map.header.stamp = ros::Time::now();
+        map.header.frame_id = "robot/odom";
+
+        updateMap(map);
+        map_pub_.publish(map);
+
+      } catch (const tf2::TransformException &ex) {
+        ROS_WARN_THROTTLE(1.0, "Transform unavailable: %s", ex.what());
+      }
 
       ros::spinOnce();
       loop_rate.sleep();
@@ -332,7 +348,6 @@ int main(int argc, char **argv) {
 
   ROS_INFO("PointCloud Mapper Node Started.");
 
-  std::this_thread::sleep_for(std::chrono::seconds(30));
   PCMapper mapper;
   mapper.run();
 
