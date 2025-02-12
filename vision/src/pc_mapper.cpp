@@ -15,6 +15,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <std_msgs/String.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -59,10 +60,13 @@ private:
   ros::Publisher map_pub_;
   ros::Publisher marker_pub_;
   ros::Publisher pc_pub_;
+  ros::Publisher modify_pub_;
+  ros::Publisher goal_sleep_pub_;
   ros::Publisher debug_cloud_pub_;
   ros::Subscriber cloud_sub_;
   ros::Subscriber odom_sub_;
   ros::Subscriber mask_sub_;
+  ros::Subscriber modify_sub_;
 
   float prior_;
   float prob_hit_;
@@ -82,13 +86,15 @@ private:
   bool mask_received_;
   std::mutex mask_mutex_;
 
+  bool map_resizing = false;
+
   pcl::octree::OctreePointCloud<pcl::PointXYZ> obstacle_octree_;
   pcl::octree::OctreePointCloud<pcl::PointXYZ> free_octree_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr obstacle_cloud_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr free_cloud_;
 
   tf2_ros::Buffer tf_buffer;
-  tf2_ros::TransformListener tf_listener(tf_buffer);
+  tf2_ros::TransformListener tf_listener;
 
   float probToLogOdds(float prob) { return log(prob / (1.0 - prob)); }
 
@@ -130,7 +136,70 @@ private:
     }
   }
 
+  void resizeMap() {
+    ROS_INFO("Creating new map centered at robot position");
+
+    grid_.origin_x =
+        current_bot_pose_.global_pose.x - (width_ * resolution_ / 2.0);
+    grid_.origin_y =
+        current_bot_pose_.global_pose.y - (height_ * resolution_ / 2.0);
+
+    ROS_INFO("Map initialized with origin as x %f and y %f", grid_.origin_x,
+             grid_.origin_y);
+
+    logOddsMap_.clear();
+    logOddsMap_.resize(grid_.width * grid_.height, probToLogOdds(prior_));
+
+    nav_msgs::OccupancyGrid new_map;
+    new_map.info.resolution = grid_.resolution;
+    new_map.info.width = grid_.width;
+    new_map.info.height = grid_.height;
+    new_map.info.origin.position.x = grid_.origin_x;
+    new_map.info.origin.position.y = grid_.origin_y;
+    new_map.info.origin.position.z = 0.0;
+    new_map.info.origin.orientation.w = 1.0;
+
+    new_map.data.clear();
+    new_map.data.resize(grid_.width * grid_.height, -1);
+
+    new_map.header.stamp = ros::Time::now();
+    new_map.header.frame_id = "odom";
+
+    obstacle_cloud_->clear();
+    free_cloud_->clear();
+    obstacle_octree_.deleteTree();
+    free_octree_.deleteTree();
+
+    updateMap(new_map);
+    map_pub_.publish(new_map);
+    ROS_INFO("New map created at robot position (%.2f, %.2f)",
+             current_bot_pose_.global_pose.x, current_bot_pose_.global_pose.y);
+  }
+
+  bool isPointOutOfBounds(const GlobalPoint &point) {
+    GridCell cell = globalPointToPixelIndex(point, grid_);
+    return (cell.x < 0 || cell.x >= grid_.width || cell.y < 0 ||
+            cell.y >= grid_.height);
+  }
+
+  void resizeMapCallback(const std_msgs::String::ConstPtr &msg) {
+    if (msg->data == "resize") {
+      map_resizing = true;
+
+      std_msgs::String sleep_msg;
+      sleep_msg.data = "sleep";
+      goal_sleep_pub_.publish(sleep_msg);
+
+      resizeMap();
+    }
+  }
+
   void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg) {
+    if (map_resizing) {
+      ROS_WARN_THROTTLE(1.0, "Map resizing, skipping cloud data");
+      return;
+    }
+
     if (!mask_received_) {
       ROS_WARN_THROTTLE(
           1.0, "No mask received yet. Skipping point cloud processing.");
@@ -161,6 +230,7 @@ private:
       return;
     }
 
+    bool needs_resize = false;
     int i = 0;
 
     for (int row = 0; row < cloud_height; ++row) {
@@ -184,6 +254,12 @@ private:
         uchar mask_value = current_mask_.at<uchar>(row, col);
 
         if (point.x < 4 && point.z < 0.1) {
+
+          if (isPointOutOfBounds(global_point)) {
+            needs_resize = true;
+            break;
+          }
+
           if (mask_value > 127) {
             obstacle_cloud_->push_back(pcl_point);
           } else {
@@ -193,6 +269,15 @@ private:
           }
         }
       }
+      if (needs_resize)
+        break;
+    }
+
+    if (needs_resize) {
+      std_msgs::String resize_msg;
+      resize_msg.data = "resize";
+      modify_pub_.publish(resize_msg);
+      return;
     }
 
     obstacle_octree_.setInputCloud(obstacle_cloud_);
@@ -220,6 +305,9 @@ private:
   }
 
   void updateMap(nav_msgs::OccupancyGrid &map) {
+    if (map_resizing)
+      return;
+
     std::unordered_map<int, int> free_count;
     std::unordered_map<int, int> obstacle_count;
     std::unordered_map<int, float> free_accumulated;
@@ -287,7 +375,8 @@ public:
   PCMapper()
       : obstacle_octree_(0.01), free_octree_(0.01),
         obstacle_cloud_(new pcl::PointCloud<pcl::PointXYZ>),
-        free_cloud_(new pcl::PointCloud<pcl::PointXYZ>), mask_received_(false) {
+        free_cloud_(new pcl::PointCloud<pcl::PointXYZ>), mask_received_(false),
+        tf_listener(tf_buffer) {
 
     loadParameters();
 
@@ -297,6 +386,14 @@ public:
         nh_.subscribe("odom_topic_sub", 1, &PCMapper::odomCallback, this);
     mask_sub_ =
         nh_.subscribe("mask_topic_sub", 1, &PCMapper::maskCallback, this);
+
+    modify_sub_ =
+        nh_.subscribe("map_modify_sub", 1, &PCMapper::resizeMapCallback, this);
+
+    modify_pub_ = nh_.advertise<std_msgs::String>("map_modify_pub", 1);
+
+    goal_sleep_pub_ =
+        nh_.advertise<std_msgs::String>("goal_sleep_pub", 1, true);
 
     map_pub_ = nh_.advertise<nav_msgs::OccupancyGrid>("map_pub", 1, true);
     debug_cloud_pub_ =
@@ -323,18 +420,36 @@ public:
 
     while (ros::ok()) {
       try {
-        geometry_msgs::TransformStamped transformStamped =
-            tf_buffer.lookupTransform("robot/base_link", "zed2i_camera_center",
-                                      ros::Time(0), ros::Duration(1.0));
+        if (tf_buffer.canTransform("robot/odom", "robot/base_link",
+                                   ros::Time(0), ros::Duration(1.0))) {
 
-        map.header.stamp = ros::Time::now();
-        map.header.frame_id = "robot/odom";
+          map.header.stamp = ros::Time::now();
+          map.header.frame_id = "robot/odom";
 
-        updateMap(map);
-        map_pub_.publish(map);
+          map.info.width = grid_.width;
+          map.info.height = grid_.height;
+          map.info.origin.position.x = grid_.origin_x;
+          map.info.origin.position.y = grid_.origin_y;
 
+          if (map_resizing) {
+            obstacle_cloud_->clear();
+            free_cloud_->clear();
+            obstacle_octree_.deleteTree();
+            free_octree_.deleteTree();
+            map.data.clear();
+            map_resizing = false;
+          }
+
+          map.data.resize(grid_.width * grid_.height, -1);
+
+          updateMap(map);
+          map_pub_.publish(map);
+        } else {
+          ROS_WARN_THROTTLE(1.0, "Transform between 'robot/odom' and "
+                                 "'robot/base_link' is not available yet.");
+        }
       } catch (const tf2::TransformException &ex) {
-        ROS_WARN_THROTTLE(1.0, "Transform unavailable: %s", ex.what());
+        ROS_WARN_THROTTLE(1.0, "Transform lookup failed: %s", ex.what());
       }
 
       ros::spinOnce();
@@ -346,7 +461,7 @@ public:
 int main(int argc, char **argv) {
   ros::init(argc, argv, "pc_mapper_node");
 
-  ROS_INFO("PointCloud Mapper Node Started.");
+  ROS_INFO("PointCloud Mapper Node Started In sim.");
 
   PCMapper mapper;
   mapper.run();

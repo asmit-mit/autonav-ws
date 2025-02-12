@@ -1,13 +1,12 @@
 #include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
 #include <std_msgs/Float32MultiArray.h>
+#include <std_msgs/String.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <tf2_ros/transform_listener.h>
 #include <visualization_msgs/Marker.h>
 
 #include <algorithm>
@@ -76,12 +75,7 @@ atomic<bool> map_received(false);
 
 ros::Publisher marker_pub;
 ros::Publisher goal_pub;
-
-ros::Time last_map_time;
-ros::Time last_odom_time;
-const double TIMEOUT_DURATION = 2.0;
-tf2_ros::Buffer tfBuffer;
-tf2_ros::TransformListener *tfListener = nullptr;
+ros::Publisher modify_pub;
 
 mutex map_mutex;
 mutex pose_mutex;
@@ -98,38 +92,6 @@ Goal current_goal;
 
 ros::Time start_time;
 ros::Time end_time;
-
-bool checkTransforms() {
-  try {
-    geometry_msgs::TransformStamped transformStamped = tfBuffer.lookupTransform(
-        "robot/base_link", "zed2i_base_link", ros::Time(0), ros::Duration(1.0));
-    return true;
-  } catch (tf2::TransformException &ex) {
-    ROS_WARN(
-        "Could not get transform from robot/base_link to zed2i_base_link: %s",
-        ex.what());
-    return false;
-  }
-}
-
-bool checkTopicsHealth() {
-  ros::Time current_time = ros::Time::now();
-  bool topics_healthy = true;
-
-  if ((current_time - last_map_time).toSec() > TIMEOUT_DURATION) {
-    ROS_WARN_THROTTLE(5.0, "No map data received for %.2f seconds",
-                      (current_time - last_map_time).toSec());
-    topics_healthy = false;
-  }
-
-  if ((current_time - last_odom_time).toSec() > TIMEOUT_DURATION) {
-    ROS_WARN_THROTTLE(5.0, "No odometry data received for %.2f seconds",
-                      (current_time - last_odom_time).toSec());
-    topics_healthy = false;
-  }
-
-  return topics_healthy;
-}
 
 inline int gridToIndex(int x, int y, int width) { return y * width + x; }
 
@@ -244,21 +206,17 @@ exploreFarthestParallel(const unordered_set<GridCell, GridCellHash> &cluster,
 }
 
 void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg) {
-  last_map_time = ros::Time::now();
-
   lock_guard<mutex> lock(map_mutex);
 
-  if (!map_received) {
-    current_map.height = msg->info.height;
-    current_map.width = msg->info.width;
-    current_map.origin.x = msg->info.origin.position.x;
-    current_map.origin.y = msg->info.origin.position.y;
-    current_map.resolution = msg->info.resolution;
+  current_map.height = msg->info.height;
+  current_map.width = msg->info.width;
+  current_map.origin.x = msg->info.origin.position.x;
+  current_map.origin.y = msg->info.origin.position.y;
+  current_map.resolution = msg->info.resolution;
 
-    current_map.grid.resize(current_map.width * current_map.height, 0);
-    ignored_cells.resize(current_map.height,
-                         vector<bool>(current_map.width, false));
-  }
+  current_map.grid.resize(current_map.width * current_map.height, 0);
+  ignored_cells.resize(current_map.height,
+                       vector<bool>(current_map.width, false));
 
   valid_lane_cells.clear();
 
@@ -281,7 +239,6 @@ void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg) {
 }
 
 void odomCallback(const nav_msgs::Odometry::ConstPtr &msg) {
-  last_odom_time = ros::Time::now();
   lock_guard<mutex> lock(pose_mutex);
 
   current_pose.world_position.x = msg->pose.pose.position.x;
@@ -307,7 +264,7 @@ void publishMarker(double x, double y, int id) {
   visualization_msgs::Marker marker;
   marker.header.frame_id = "robot/odom";
   marker.header.stamp = ros::Time::now();
-  marker.ns = "local_goal";
+  marker.ns = "local_goal_marker";
   marker.id = id;
   marker.type = visualization_msgs::Marker::SPHERE;
   marker.action = visualization_msgs::Marker::ADD;
@@ -348,20 +305,6 @@ void publishGoal(double x, double y, double yaw) {
 
 void processGoal() {
   while (ros::ok()) {
-    if (!checkTransforms()) {
-      ROS_WARN_THROTTLE(
-          5.0, "Goal generation paused: waiting for required transforms");
-      this_thread::sleep_for(chrono::seconds(1));
-      continue;
-    }
-
-    if (!checkTopicsHealth()) {
-      ROS_WARN_THROTTLE(5.0,
-                        "Goal generation paused: waiting for required topics");
-      this_thread::sleep_for(chrono::seconds(1));
-      continue;
-    }
-
     if (odom_received && map_received) {
       GridCell goal_cell;
       GridCell closest_lane_cell;
@@ -421,39 +364,51 @@ void processGoal() {
             goal_cell = last_goal_cell;
           }
 
-          int angle = 90;
-          if (current_pose.yaw < 0) {
-            angle = -1 * angle;
-          }
-
           GridCell goal_cell_e;
           goal_cell_e.x = goal_cell.x + 120 * cos(current_pose.yaw + 0);
           goal_cell_e.y = goal_cell.y + 120 * sin(current_pose.yaw + 0);
+
+          ROS_INFO("Goal given at x %d y %d with map size as %d x %d",
+                   goal_cell_e.x, goal_cell_e.y, current_map.width,
+                   current_map.height);
+
+          if (goal_cell_e.x < 50 || goal_cell_e.y < 50 ||
+              goal_cell_e.x > current_map.width - 50 ||
+              goal_cell_e.y > current_map.height - 50) {
+            last_goal_cell = GridCell(-1, -1);
+            std_msgs::String resize_msg;
+            resize_msg.data = "resize";
+            modify_pub.publish(resize_msg);
+            ROS_INFO("Published reszie message");
+
+            goal_cell_e.x = max(51, min(current_map.width - 51, goal_cell_e.x));
+            goal_cell_e.y =
+                max(51, min(current_map.height - 51, goal_cell_e.y));
+
+            ignored_cells.clear();
+            ignored_cells.resize(current_map.height,
+                                 vector<bool>(current_map.width, false));
+
+            Point goal_point = gridToPoint(goal_cell_e, current_map);
+            publishMarker(goal_point.x, goal_point.y, 1);
+            publishGoal(goal_point.x, goal_point.y, current_pose.yaw);
+
+            this_thread::sleep_for(chrono::seconds(1));
+          }
 
           Point goal_point = gridToPoint(goal_cell_e, current_map);
           publishMarker(goal_point.x, goal_point.y, 1);
           publishGoal(goal_point.x, goal_point.y, current_pose.yaw);
 
-          // cout << "Goal: " << goal_cell.x << " " << goal_cell.y << endl;
-          // cout << "Bot Pose: " << current_pose.map_position.x << " " <<
-          // current_pose.map_position.y << endl; cout << "Closest lane cell: "
-          // << closest_lane_cell.x << " " << closest_lane_cell.y << endl; cout
-          // << "Ignored Cells: " << count_if(ignored_cells.begin(),
-          // ignored_cells.end(), [](const vector<bool>& row) { return
-          // count(row.begin(), row.end(), true); }) << endl; cout << "Valid
-          // lane cells: " << valid_lane_cells.size() << endl;
-
           last_goal_cell = goal_cell;
         }
       }
-
-      // cout << endl;
 
       map_received = false;
       odom_received = false;
     }
 
-    this_thread::sleep_for(chrono::milliseconds(200));
+    this_thread::sleep_for(chrono::milliseconds(500));
   }
 }
 
@@ -461,61 +416,25 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "goal_gen");
   ros::NodeHandle nh;
 
-  try {
-    tfListener = new tf2_ros::TransformListener(tfBuffer);
+  ROS_INFO("Goal Gen Started.");
 
-    ros::Duration(1.0).sleep();
+  start_time = ros::Time::now();
 
-    if (!checkTransforms()) {
-      ROS_ERROR("Required transforms not available. Shutting down.");
-      delete tfListener;
-      return 1;
-    }
+  goal_pub =
+      nh.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
+  marker_pub =
+      nh.advertise<visualization_msgs::Marker>("/nav/local_goal_marker", 10);
+  modify_pub = nh.advertise<std_msgs::String>("/nav/needs_modify", 10);
 
-    ROS_INFO("Goal Gen Started.");
+  ros::Subscriber map_sub = nh.subscribe("nav/global_map", 1, mapCallback);
+  ros::Subscriber odom_sub =
+      nh.subscribe("robot/dlo/odom_node/odom", 1, odomCallback);
 
-    start_time = ros::Time::now();
-    last_map_time = ros::Time::now();
-    last_odom_time = ros::Time::now();
+  thread goal_thread(processGoal);
 
-    goal_pub =
-        nh.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
-    marker_pub = nh.advertise<visualization_msgs::Marker>("nav/local_goal", 10);
+  ros::spin();
 
-    ros::Subscriber map_sub = nh.subscribe("nav/global_map", 1, mapCallback);
-    ros::Subscriber odom_sub =
-        nh.subscribe("robot/dlo/odom_node/odom", 1, odomCallback);
-    // ros::Subscriber global_goal_sub = nh.subscribe("/goal", 1,
-    // globalGoalCallback);
+  goal_thread.join();
 
-    thread goal_thread(processGoal);
-
-    ros::spin();
-
-    goal_thread.join();
-
-    // if (final_goal_reached) {
-    //   ros::Duration time_taken = ros::Time::now() - start_time;
-    //   ROS_INFO("==========================================");
-    //   ROS_INFO("Final time (printed from main):");
-    //   ROS_INFO_STREAM("Time taken to complete the course: "
-    //                   << time_taken.toSec() << " seconds");
-    //   ROS_INFO("==========================================");
-    // } else {
-    //   ROS_WARN("Goal Gen node shutting down before reaching final goal.");
-    //   ROS_INFO_STREAM("Total runtime: "
-    //                   << (ros::Time::now() - start_time).toSec() << "
-    //                   seconds");
-    // }
-
-    delete tfListener;
-    return 0;
-
-  } catch (const std::exception &e) {
-    ROS_ERROR_STREAM("Exception in goal_gen: " << e.what());
-    if (tfListener) {
-      delete tfListener;
-    }
-    return 1;
-  }
+  return 0;
 }
