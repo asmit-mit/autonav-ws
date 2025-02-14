@@ -7,3 +7,7 @@
 [submodule "src/direct_lidar_odometry"]
 	path = src/direct_lidar_odometry
 	url = https://github.com/vectr-ucla/direct_lidar_odometry.git
+[submodule "src/teleop_controller"]
+  path = src/teleop_controller
+  url = git@github.com:Karthikeya819/teleop_controller.git
+  branch = python3
