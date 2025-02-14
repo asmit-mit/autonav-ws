@@ -2,6 +2,9 @@
 
 import sys
 
+# Velocity Controller
+import time
+
 import rospy
 
 # Automatic Serial Detection
@@ -16,6 +19,35 @@ import compy.conn as conn
 Stm32_Con = None
 pub = None
 LRPM, RRPM = 0, 0
+LinearVC, AngularVC = None, None
+
+
+class VelocityController:
+    def __init__(self, Max_Accelration=0.3):
+        self.Max_Accelration = Max_Accelration
+        self.LastSet = 0
+        self.LastVel = 0
+        self.LastTime = time.perf_counter()
+
+    def Command(self, Velocity):
+        self.LastSet = Velocity
+
+    def Control(self):
+        delta_t = time.perf_counter() - self.LastTime
+        maxSpeed = self.Max_Accelration * delta_t
+        if abs(self.LastSet - self.LastVel) > maxSpeed:
+            # self.LastVel = self.LastVel + maxSpeed if (self.LastSet > 0 or (self.LastVel < 0 and self.LastSet == 0)) else self.LastVel - maxSpeed
+            self.LastVel = (
+                self.LastVel + maxSpeed
+                if self.LastSet > self.LastVel
+                else self.LastVel - maxSpeed
+            )
+            self.LastTime = time.perf_counter()
+            return self.LastVel
+        else:
+            self.LastVel = self.LastSet
+            self.LastTime = time.perf_counter()
+            return self.LastSet
 
 
 # Finding STM32 on all Ports
@@ -55,7 +87,7 @@ def ConnectStm32():
 # Diff Drive Module
 def DiffDrive(VL, WZ):
     # Constants
-    L = 0.55  # Distance between the wheels in m
+    L = 0.77  # Distance between the wheels in m
     R = 0.1778  # Radius of the wheel in m
 
     # m/s
@@ -84,34 +116,45 @@ def CommandRPM(LRPM, RRPM):
 
 # Callback to /cmd_vel Subscriber
 def callback(data):
-    global LRPM, RRPM
+    global LRPM, RRPM, LinearVC, AngularVC
     # rospy.loginfo(data.linear.x,data.angular.z)
     # print(DiffDrive(data.linear.x,data.angular.z))
-    LRPM, RRPM = DiffDrive(data.linear.x, data.angular.z)
-    CommandRPM(LRPM, RRPM)
-    print(LRPM, RRPM)
+
+    # LRPM,RRPM = DiffDrive(data.linear.x,data.angular.z)
+    # CommandRPM(LRPM,RRPM)
+    # print(LRPM,RRPM)
+    LinearVC.Command(data.linear.x)
+    AngularVC.Command(data.angular.z)
 
 
 # Ros Publisher and init (Only for PID Tuning)
 
 
-def talker():
-    global LRPM, RRPM
-    rospy.init_node("DkPy", anonymous=True)
+def ros_talker():
+    global LRPM, RRPM, LinearVC, AngularVC
+    rospy.init_node("Teleop Control", anonymous=True)
     print("Initialized Node.....")
+    LinearVC, AngularVC = VelocityController(0.6), VelocityController(1.0)
     rospy.Subscriber("/cmd_vel", Twist, callback)
     print("Subscribed to /cmd_vel")
     print("Spinning............")
+    rate = rospy.Rate(20)
     while not rospy.is_shutdown():
-        try:
-            rospy.spin()
-        except Exception as e:
-            print(f"Exception in talker: {e}")
+        LRPM, RRPM = DiffDrive(LinearVC.Control(), AngularVC.Control())
+        CommandRPM(LRPM, RRPM)
+        print(LRPM, RRPM)
+        rate.sleep()
+    # print("Spinning............")
+    # while not rospy.is_shutdown():
+    # 	try:
+    # 		rospy.spin()
+    # 	except Exception as e:
+    # 		print(f"Exception in talker: {e}")
 
 
 if __name__ == "__main__":
     ConnectStm32()
     try:
-        talker()
+        ros_talker()
     except Exception as e:
         print(e)

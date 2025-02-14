@@ -13,3 +13,5 @@ Ros package designed to facilitate communication between a ROS system and an STM
 
 ## Credits
 This package utilizes the `compy` library, which is prebuilt and included within this package. Special thanks to Sachin for developing compy, which provides essential functionality for this project.
+
+If you’re interested in implementing this in ROS2, there is a branch named `ros2` available. You can find it [here](https://github.com/Karthikeya819/manas_expo_nova/tree/ros2).

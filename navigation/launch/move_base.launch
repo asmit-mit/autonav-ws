@@ -2,10 +2,10 @@
 <launch>
   <!-- Move Base Node -->
   <node name="move_base_teb" output="screen" pkg="move_base" type="move_base">
-    <rosparam command="load" file="$(find navigation)/config/teb/local_costmap_params.yaml" />
-    <rosparam command="load" file="$(find navigation)/config/teb/global_costmap_params.yaml" />
-    <rosparam command="load" file="$(find navigation)/config/teb/base_global_planner.yaml" />
-    <rosparam command="load" file="$(find navigation)/config/teb/teb_local_planner_params.yaml" />
+    <rosparam command="load" file="$(find navigation)/config/local_costmap_params.yaml" />
+    <rosparam command="load" file="$(find navigation)/config/global_costmap_params.yaml" />
+    <rosparam command="load" file="$(find navigation)/config/base_global_planner.yaml" />
+    <rosparam command="load" file="$(find navigation)/config/teb_local_planner_params.yaml" />
     <param name="base_global_planner" value="navfn/NavfnROS" />
     <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" />
     <remap from="odom" to="/robot/dlo/odom_node/odom" />
@@ -14,10 +14,10 @@
 
 
   <node name="move_base_dwa" output="screen" pkg="move_base" type="move_base">
-    <rosparam command="load" file="$(find navigation)/config/dwa/local_costmap_params.yaml" />
-    <rosparam command="load" file="$(find navigation)/config/dwa/global_costmap_params.yaml" />
-    <rosparam command="load" file="$(find navigation)/config/dwa/base_global_planner.yaml" />
-    <rosparam command="load" file="$(find navigation)/config/dwa/base_local_planner.yaml" />
+    <rosparam command="load" file="$(find navigation)/config/local_costmap_params.yaml" />
+    <rosparam command="load" file="$(find navigation)/config/global_costmap_params.yaml" />
+    <rosparam command="load" file="$(find navigation)/config/base_global_planner.yaml" />
+    <rosparam command="load" file="$(find navigation)/config/dwa_local_planner_params.yaml" />
     <param name="base_global_planner" value="navfn/NavfnROS" />
     <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" />
     <remap from="odom" to="/robot/dlo/odom_node/odom" />

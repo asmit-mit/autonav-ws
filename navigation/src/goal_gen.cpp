@@ -268,7 +268,7 @@ void GoalGenerator::processGoalCell(GridCell &goal_cell) {
     std_msgs::String resize_msg;
     resize_msg.data = "resize";
     modify_pub_.publish(resize_msg);
-    // ROS_INFO("Published resize message");
+    ROS_INFO("Published resize message");
   }
 
   goal_cell_e.x =
@@ -289,7 +289,6 @@ void GoalGenerator::globalGoalCallback(
                    static_cast<int>(msg->pose.position.z)};
 }
 
-// Implementation
 GoalGenerator::GoalGenerator(ros::NodeHandle &nh)
     : tf_listener_(tf_buffer_), last_goal_cell_(-1, -1), odom_received_(false),
       map_received_(false) {
@@ -326,10 +325,10 @@ void GoalGenerator::initializePublishers(ros::NodeHandle &nh) {
 void GoalGenerator::initializeSubscribers(ros::NodeHandle &nh) {
   map_sub_ =
       nh.subscribe("nav/global_map", 1, &GoalGenerator::mapCallback, this);
-  odom_sub_ = nh.subscribe("robot/dlo/odom_node/odom", 1, &GoalGenerator::odomCallback, this);
-  modify_sub_ =
-      nh.subscribe("/nav/needs_modify", 1, &GoalGenerator::modifyCallback,
-                   this); // Add this line
+  odom_sub_ = nh.subscribe("robot/dlo/odom_node/odom", 1,
+                           &GoalGenerator::odomCallback, this);
+  modify_sub_ = nh.subscribe("/nav/needs_modify", 1,
+                             &GoalGenerator::modifyCallback, this);
 }
 
 void GoalGenerator::mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg) {
@@ -369,7 +368,7 @@ void GoalGenerator::modifyCallback(const std_msgs::String::ConstPtr &msg) {
     std::lock_guard<std::mutex> lock(map_mutex_);
     std::lock_guard<std::mutex> pose_lock(pose_mutex_);
 
-    // ROS_INFO("Got resize message...");
+    ROS_INFO("Got resize message...");
 
     ignored_cells_.clear();
     ignored_cells_.resize(current_map_.height,

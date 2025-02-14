@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<launch>
-    <node name="talker" pkg="teleop_controller" type="Bot.py" output="screen"/>
-    <node name="teleop_keyboard" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" output="screen"/>
-</launch>
