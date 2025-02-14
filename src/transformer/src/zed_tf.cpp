@@ -8,7 +8,7 @@
 
 class ImuTransformer {
 public:
-  ImuTransformer() : received_imu(false), running_sum(0.0), window_size(30) {
+  ImuTransformer() : received_imu(false), running_sum(0.0), window_size(50) {
     ros::NodeHandle nh;
 
     imu_sub = nh.subscribe("/zed_node/imu/data", 10,
