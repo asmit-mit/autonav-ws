@@ -4,7 +4,7 @@
     <node pkg="vision" type="obstacle_cloud_node" name="obstacle_cloud_node" output="screen">
       <param name="robot_radius" value="0.45" />
 
-      <remap from="pointcloud_sub" to="/ouster/points2" />
+      <remap from="pointcloud_sub" to="/lidar/points" />
       <remap from="obstacle_cloud_pub" to="/nav/obstacle_cloud" />
     </node>
 

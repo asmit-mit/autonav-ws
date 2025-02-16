@@ -7,7 +7,7 @@
         <param name="higher_v" value="255" />
         <param name="lower_h" value="0" />
         <param name="lower_s" value="0" />
-        <param name="lower_v" value="255" />
+        <param name="lower_v" value="240" />
         <param name="target_v" value="140" />
 
         <remap from="rgb_image_topic_sub" to="/zed_node/rgb/image_rect_color" />
