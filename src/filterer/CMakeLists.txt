@@ -1,9 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(navigation)
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++17")
+project(filterer)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -12,13 +8,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++17")
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  move_base
-  roscpp
+  cv_bridge
+  pcl_ros
   rospy
-  teb_local_planner
-  robot_localization
-  tf2_ros
   tf2
+  tf2_ros
 )
 
 ## System dependencies are found with CMake's conventions
@@ -112,8 +106,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES navigation
-#  CATKIN_DEPENDS move_base roscpp rospy teb_local_planner tf
+#  LIBRARIES filterer
+#  CATKIN_DEPENDS cv_bridge pcl_ros rospy tf2 tf2_ros
 #  DEPENDS system_lib
 )
 
@@ -130,7 +124,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/navigation.cpp
+#   src/${PROJECT_NAME}/filterer.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -141,7 +135,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/navigation_node.cpp)
+# add_executable(${PROJECT_NAME}_node src/filterer_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -205,7 +199,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_navigation.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_filterer.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

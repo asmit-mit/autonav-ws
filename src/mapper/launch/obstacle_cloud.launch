@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
 
-    <node pkg="vision" type="obstacle_cloud_node" name="obstacle_cloud_node" output="screen">
+    <node pkg="mapper" type="obstacle_cloud_node" name="obstacle_cloud_node" output="screen">
       <param name="robot_radius" value="0.45" />
 
       <remap from="pointcloud_sub" to="/lidar/points" />

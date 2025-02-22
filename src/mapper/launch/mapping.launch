@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
     <!-- PCMapper Node -->
-    <node pkg="vision" type="pc_mapper_node" name="pc_mapper_node" output="screen">
+    <node pkg="mapper" type="pc_mapper_node" name="pc_mapper_node" output="screen">
         <!-- Topic Remappings -->
         <remap from="pointcloud_topic_sub" to="/nav/point_cloud" />
         <remap from="odom_topic_sub" to="/robot/dlo/odom_node/odom" />

@@ -216,7 +216,8 @@ Visualization Manager:
       Marker Topic: /move_base_teb/TebLocalPlannerROS/teb_markers
       Name: Marker
       Namespaces:
-        {}
+        PointObstacles: true
+        TebContainer: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -315,6 +316,14 @@ Visualization Manager:
       Topic: /lidar/imu
       Unreliable: false
       Value: false
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /nav/local_goal_marker
+      Name: Marker
+      Namespaces:
+        local_goal_marker: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -343,7 +352,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 29.324329376220703
+      Distance: 17.32225799560547
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

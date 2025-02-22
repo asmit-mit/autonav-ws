@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <include file="$(find transformer)/launch/transformer.launch"></include>
+  <include file="$(find filterer)/launch/filter.launch"></include>
+  <include file="$(find mapper)/launch/mapping.launch"></include>
+  <include file="$(find mapper)/launch/obstacle_cloud.launch"></include>
+
+</launch>
