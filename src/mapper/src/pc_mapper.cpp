@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <limits>
 #include <mutex>
 #include <nav_msgs/OccupancyGrid.h>
 #include <nav_msgs/Odometry.h>
@@ -165,11 +166,6 @@ private:
     new_map.header.stamp = ros::Time::now();
     new_map.header.frame_id = "odom";
 
-    obstacle_cloud_->clear();
-    free_cloud_->clear();
-    obstacle_octree_.deleteTree();
-    free_octree_.deleteTree();
-
     updateMap(new_map);
     map_pub_.publish(new_map);
     ROS_INFO("New map created at robot position (%.2f, %.2f)",
@@ -207,11 +203,6 @@ private:
     }
 
     std::lock_guard<std::mutex> lock(mask_mutex_);
-
-    obstacle_cloud_->clear();
-    free_cloud_->clear();
-    obstacle_octree_.deleteTree();
-    free_octree_.deleteTree();
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr current_cloud(
         new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -340,20 +331,28 @@ private:
     for (const auto &[index, count] : free_count) {
       float average_update = free_accumulated[index] / count;
       logOddsMap_[index] += average_update;
+      /* logOddsMap_[index] = */
+      /*     std::max(static_cast<float>(-10), */
+      /*              std::min(logOddsMap_[index], static_cast<float>(10))); */
 
       float prob = logOddsToProb(logOddsMap_[index]);
       prob = std::max(min_prob_, std::min(max_prob_, prob));
       logOddsMap_[index] = probToLogOdds(prob);
+
       map.data[index] = (prob >= obstacle_thresh_) ? 100 : 0;
     }
 
     for (const auto &[index, count] : obstacle_count) {
       float average_update = obstacle_accumulated[index] / count;
       logOddsMap_[index] += average_update;
+      /* logOddsMap_[index] = */
+      /*     std::max(static_cast<float>(-10), */
+      /*              std::min(logOddsMap_[index], static_cast<float>(10))); */
 
       float prob = logOddsToProb(logOddsMap_[index]);
       prob = std::max(min_prob_, std::min(max_prob_, prob));
       logOddsMap_[index] = probToLogOdds(prob);
+
       map.data[index] = (prob >= obstacle_thresh_) ? 100 : 0;
     }
   }
@@ -444,6 +443,12 @@ public:
 
           updateMap(map);
           map_pub_.publish(map);
+
+          obstacle_cloud_->clear();
+          free_cloud_->clear();
+          obstacle_octree_.deleteTree();
+          free_octree_.deleteTree();
+
         } else {
           ROS_WARN_THROTTLE(1.0, "Transform between 'robot/odom' and "
                                  "'robot/base_link' is not available yet.");

@@ -3,6 +3,7 @@
 #include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
 #include <std_msgs/Float32MultiArray.h>
+#include <std_msgs/Int32.h>
 #include <std_msgs/String.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -40,11 +41,6 @@ struct Point {
   double x, y;
 };
 
-struct Goal {
-  Point pose;
-  int counter;
-};
-
 struct Map {
   int width, height;
   GridCell origin;
@@ -64,40 +60,40 @@ public:
   ~GoalGenerator();
 
 private:
-  // ROS Communication
   ros::Publisher marker_pub_;
   ros::Publisher goal_pub_;
   ros::Publisher modify_pub_;
+
   ros::Subscriber map_sub_;
   ros::Subscriber odom_sub_;
   ros::Subscriber global_goal_sub_;
   ros::Subscriber modify_sub_;
+  ros::Subscriber gps_goal_sub_;
 
-  // TF2 objects
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
 
-  // State variables
   std::vector<std::vector<bool>> ignored_cells_;
   std::unordered_set<GridCell, GridCellHash> valid_lane_cells_;
   GridCell last_goal_cell_;
   BotPose current_pose_;
   Map current_map_;
-  Goal current_goal_;
 
-  // Thread synchronization
+  bool paused_ = false;
+  int gps_counter_;
+
   std::atomic<bool> odom_received_;
   std::atomic<bool> map_received_;
   std::mutex map_mutex_;
   std::mutex pose_mutex_;
   std::thread goal_thread_;
 
-  // Member functions
   void initializePublishers(ros::NodeHandle &nh);
   void initializeSubscribers(ros::NodeHandle &nh);
   void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg);
   void odomCallback(const nav_msgs::Odometry::ConstPtr &msg);
-  void globalGoalCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
+  void gpsGoalCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
+  void gpsCounterCallback(const std_msgs::Int32::ConstPtr &msg);
   void modifyCallback(const std_msgs::String::ConstPtr &msg);
 
   void processGoal();
@@ -106,7 +102,6 @@ private:
   void processGoalCell(GridCell &goal_cell);
   bool isTransformAvailable();
 
-  // Utility functions
   void publishMarker(double x, double y, int id);
   void publishGoal(double x, double y, double yaw);
   GridCell findClosestLaneParallel(const std::vector<int> &map, int width,
@@ -115,7 +110,6 @@ private:
       const std::unordered_set<GridCell, GridCellHash> &cluster,
       const GridCell &start, double eps);
 
-  // Helper functions
   static inline int gridToIndex(int x, int y, int width) {
     return y * width + x;
   }
@@ -283,12 +277,6 @@ void GoalGenerator::processGoalCell(GridCell &goal_cell) {
   last_goal_cell_ = goal_cell;
 }
 
-void GoalGenerator::globalGoalCallback(
-    const geometry_msgs::PoseStamped::ConstPtr &msg) {
-  current_goal_ = {{msg->pose.position.x, msg->pose.position.y},
-                   static_cast<int>(msg->pose.position.z)};
-}
-
 GoalGenerator::GoalGenerator(ros::NodeHandle &nh)
     : tf_listener_(tf_buffer_), last_goal_cell_(-1, -1), odom_received_(false),
       map_received_(false) {
@@ -329,6 +317,8 @@ void GoalGenerator::initializeSubscribers(ros::NodeHandle &nh) {
                            &GoalGenerator::odomCallback, this);
   modify_sub_ = nh.subscribe("/nav/needs_modify", 1,
                              &GoalGenerator::modifyCallback, this);
+  gps_goal_sub_ =
+      nh.subscribe("/nav/gps_goal", 1, &GoalGenerator::gpsGoalCallback, this);
 }
 
 void GoalGenerator::mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg) {
@@ -373,6 +363,24 @@ void GoalGenerator::modifyCallback(const std_msgs::String::ConstPtr &msg) {
     ignored_cells_.clear();
     ignored_cells_.resize(current_map_.height,
                           std::vector<bool>(current_map_.width, false));
+  }
+}
+
+void GoalGenerator::gpsGoalCallback(
+    const geometry_msgs::PoseStamped::ConstPtr &msg) {
+  Point gps_goal;
+  gps_goal.x = msg->pose.position.x;
+  gps_goal.y = msg->pose.position.y;
+  gps_counter_ = msg->pose.position.z;
+
+  if ((gps_counter_ > 1 && gps_counter_ <= 4) ||
+      (distancePoint(gps_goal, current_pose_.world_position) < 5 &&
+       gps_counter_ == 1)) {
+    paused_ = true;
+    publishGoal(gps_goal.x, gps_goal.y, current_pose_.yaw);
+    publishMarker(gps_goal.x, gps_goal.y, 1);
+  } else {
+    paused_ = false;
   }
 }
 
@@ -441,7 +449,7 @@ void GoalGenerator::processGoal() {
       continue;
     }
 
-    if (odom_received_ && map_received_) {
+    if (odom_received_ && map_received_ && !paused_) {
       GridCell goal_cell;
       GridCell closest_lane_cell;
 

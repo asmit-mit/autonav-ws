@@ -1,27 +1,27 @@
 <?xml version="1.0"?>
 <launch>
-    <!-- PCMapper Node -->
-    <node pkg="mapper" type="pc_mapper_node" name="pc_mapper_node" output="screen">
-        <!-- Topic Remappings -->
-        <remap from="pointcloud_topic_sub" to="/nav/point_cloud" />
-        <remap from="odom_topic_sub" to="/robot/dlo/odom_node/odom" />
-        <remap from="mask_topic_sub" to="/lane_filter/mask" />
-        <remap from="map_modify_sub" to="nav/needs_modify" />
-        <remap from="map_modify_pub" to="nav/needs_modify" />
-        <remap from="goal_sleep_pub" to="nav/goal_sleep" />
-        <remap from="map_pub" to="/nav/global_map" />
-        <remap from="debug_cloud_pub" to="/lane_filter/debug_cloud" />
+  <!-- PCMapper Node -->
+  <node pkg="mapper" type="pc_mapper_node" name="pc_mapper_node" output="screen">
+    <!-- Topic Remappings -->
+    <remap from="pointcloud_topic_sub" to="/nav/point_cloud" />
+    <remap from="odom_topic_sub" to="/robot/dlo/odom_node/odom" />
+    <remap from="mask_topic_sub" to="/lane_filter/mask" />
+    <remap from="map_modify_sub" to="nav/needs_modify" />
+    <remap from="map_modify_pub" to="nav/needs_modify" />
+    <remap from="goal_sleep_pub" to="nav/goal_sleep" />
+    <remap from="map_pub" to="/nav/global_map" />
+    <remap from="debug_cloud_pub" to="/lane_filter/debug_cloud" />
 
-        <param name="~prior" value="0.5" />
-        <param name="~prob_hit" value="0.8" />
-        <param name="~prob_miss" value="0.2" />
-        <param name="~min_prob" value="0.12" />
-        <param name="~max_prob" value="0.99" />
-        <param name="~obstacle_threshold" value="0.55" />
-        
-        <param name="~resolution" value="0.04" />
-        
-        <param name="~width" value="2000" />
-        <param name="~height" value="2000" />
-    </node>
+    <param name="~prior" value="0.5" />
+    <param name="~prob_hit" value="0.8" />
+    <param name="~prob_miss" value="0.2" />
+    <param name="~min_prob" value="0.12" />
+    <param name="~max_prob" value="0.99" />
+    <param name="~obstacle_threshold" value="0.55" />
+
+    <param name="~resolution" value="0.04" />
+
+    <param name="~width" value="2000" />
+    <param name="~height" value="2000" />
+  </node>
 </launch>

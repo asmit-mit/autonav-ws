@@ -7,7 +7,7 @@
     <arg name="viz" value="false" />
   </include>
   <include file="$(find direct_lidar_odometry)/launch/dlo.launch">
-    <arg name="rviz" value="false"/>
+    <arg name="rviz" value="false" />
     <arg name="pointcloud_topic" value="/lidar/points"></arg>
     <arg name="imu_topic" value="/lidar/imu"></arg>
   </include>
