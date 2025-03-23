@@ -59,8 +59,8 @@ def generate_launch_description():
             parameters=[{'use_sim_time': False},
                         {'autostart': True},
                         {'node_names': ['planner_server',
-                                        'amcl',
-                                        'smoother_server',
+                                        # 'amcl',
+                                        # 'smoother_server',
                                         'controller_server', 
                                         'bt_navigator',
                                         'recoveries_server'
