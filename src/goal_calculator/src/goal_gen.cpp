@@ -81,6 +81,8 @@ private:
 
   bool paused_ = false;
   int gps_counter_;
+  int gps_tolerence_ = 5;
+  int total_gps_points_ = 2;
 
   std::atomic<bool> odom_received_;
   std::atomic<bool> map_received_;
@@ -373,13 +375,14 @@ void GoalGenerator::gpsGoalCallback(
   gps_goal.y = msg->pose.position.y;
   gps_counter_ = msg->pose.position.z;
 
-  if ((gps_counter_ > 1 && gps_counter_ <= 4) ||
-      (distancePoint(gps_goal, current_pose_.world_position) < 5 &&
-       gps_counter_ == 1)) {
+  double distance = distancePoint(gps_goal, current_pose_.world_position);
+
+  if ((gps_counter_ > 1 && gps_counter_ <= total_gps_points_) ||
+      (distance < gps_tolerence_) && gps_counter_ == 1) {
     paused_ = true;
     publishGoal(gps_goal.x, gps_goal.y, current_pose_.yaw);
     publishMarker(gps_goal.x, gps_goal.y, 1);
-  } else {
+  } else if (gps_counter_ > total_gps_points_) {
     paused_ = false;
   }
 }
