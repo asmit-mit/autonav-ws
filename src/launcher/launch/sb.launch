@@ -3,6 +3,6 @@
 <launch>
 
   <include file="$(find launcher)/launch/vision.launch"></include>
-  <!-- <include file="$(find launcher)/launch/nav.launch"></include> -->
+  <include file="$(find launcher)/launch/nav.launch"></include>
 
 </launch>
