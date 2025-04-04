@@ -1,5 +1,6 @@
 <launch>
 
   <node name="goal_gen_node" output="screen" pkg="goal_calculator" type="goal_gen" />
+  <node name="fake_gps_publisher" pkg="goal_calculator" type="fake_gps_publisher.py" output="screen"></node>
 
 </launch>

@@ -1,3 +1,4 @@
+#include "ros/console.h"
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <nav_msgs/Odometry.h>
@@ -57,6 +58,7 @@ struct BotPose {
 class GoalGenerator {
 public:
   GoalGenerator(ros::NodeHandle &nh);
+
   ~GoalGenerator();
 
 private:
@@ -80,7 +82,7 @@ private:
   Map current_map_;
 
   bool paused_ = false;
-  int gps_counter_;
+  int gps_counter_ = 0;
   int gps_tolerence_ = 5;
   int total_gps_points_ = 2;
 
@@ -95,7 +97,6 @@ private:
   void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg);
   void odomCallback(const nav_msgs::Odometry::ConstPtr &msg);
   void gpsGoalCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
-  void gpsCounterCallback(const std_msgs::Int32::ConstPtr &msg);
   void modifyCallback(const std_msgs::String::ConstPtr &msg);
 
   void processGoal();
@@ -371,9 +372,12 @@ void GoalGenerator::modifyCallback(const std_msgs::String::ConstPtr &msg) {
 void GoalGenerator::gpsGoalCallback(
     const geometry_msgs::PoseStamped::ConstPtr &msg) {
   Point gps_goal;
+
   gps_goal.x = msg->pose.position.x;
   gps_goal.y = msg->pose.position.y;
   gps_counter_ = msg->pose.position.z;
+
+  ROS_INFO("Gps goals at: %f %f", gps_goal.x, gps_goal.y);
 
   double distance = distancePoint(gps_goal, current_pose_.world_position);
 
