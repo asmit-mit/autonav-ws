@@ -1,505 +1,536 @@
+#include "geometry_msgs/Point.h"
+#include "geometry_msgs/PoseStamped.h"
+#include "nav_msgs/OccupancyGrid.h"
+#include "nav_msgs/Odometry.h"
 #include "ros/console.h"
-#include <geometry_msgs/PoseStamped.h>
-#include <nav_msgs/OccupancyGrid.h>
-#include <nav_msgs/Odometry.h>
-#include <ros/ros.h>
-#include <std_msgs/Float32MultiArray.h>
-#include <std_msgs/Int32.h>
-#include <std_msgs/String.h>
-#include <tf2/LinearMath/Matrix3x3.h>
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <tf2_ros/transform_listener.h>
-#include <visualization_msgs/Marker.h>
+#include "ros/ros.h"
+#include "tf2/LinearMath/Matrix3x3.h"
+#include "tf2/LinearMath/Quaternion.h"
+#include "visualization_msgs/Marker.h"
 
-#include <algorithm>
-#include <atomic>
 #include <cmath>
-#include <future>
-#include <iostream>
-#include <limits>
-#include <mutex>
 #include <queue>
 #include <thread>
 #include <unordered_set>
 #include <vector>
 
-struct GridCell {
-  int x, y;
-  GridCell(int x = 0, int y = 0) : x(x), y(y) {}
-  bool operator==(const GridCell &other) const {
-    return x == other.x && y == other.y;
-  }
+struct WorldPose {
+  double x;
+  double y;
+
+  WorldPose(double x_val = 0.0, double y_val = 0.0) : x(x_val), y(y_val) {}
 };
 
-struct GridCellHash {
-  size_t operator()(const GridCell &cell) const {
-    return std::hash<int>()(cell.x) ^ (std::hash<int>()(cell.y) << 1);
-  }
-};
+struct MapPose {
+  int x;
+  int y;
 
-struct Point {
-  double x, y;
+  MapPose(int x_val = 0, int y_val = 0) : x(x_val), y(y_val) {}
 };
 
 struct Map {
   int width, height;
-  GridCell origin;
   double resolution;
-  std::vector<int> grid;
+  WorldPose origin;
+  std::vector<std::vector<int>> grid;
 };
 
 struct BotPose {
-  Point world_position;
-  GridCell map_position;
-  double yaw;
+  WorldPose world_pose;
+  MapPose map_pose;
+  double roll, pitch, yaw;
 };
 
-class GoalGenerator {
+class Utils {
 public:
-  GoalGenerator(ros::NodeHandle &nh);
+  Utils() {}
 
-  ~GoalGenerator();
-
-private:
-  ros::Publisher marker_pub_;
-  ros::Publisher goal_pub_;
-  ros::Publisher modify_pub_;
-
-  ros::Subscriber map_sub_;
-  ros::Subscriber odom_sub_;
-  ros::Subscriber global_goal_sub_;
-  ros::Subscriber modify_sub_;
-  ros::Subscriber gps_goal_sub_;
-
-  tf2_ros::Buffer tf_buffer_;
-  tf2_ros::TransformListener tf_listener_;
-
-  std::vector<std::vector<bool>> ignored_cells_;
-  std::unordered_set<GridCell, GridCellHash> valid_lane_cells_;
-  GridCell last_goal_cell_;
-  BotPose current_pose_;
-  Map current_map_;
-
-  bool paused_ = false;
-  int gps_counter_ = 0;
-  int gps_tolerence_ = 5;
-  int total_gps_points_ = 2;
-
-  std::atomic<bool> odom_received_;
-  std::atomic<bool> map_received_;
-  std::mutex map_mutex_;
-  std::mutex pose_mutex_;
-  std::thread goal_thread_;
-
-  void initializePublishers(ros::NodeHandle &nh);
-  void initializeSubscribers(ros::NodeHandle &nh);
-  void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg);
-  void odomCallback(const nav_msgs::Odometry::ConstPtr &msg);
-  void gpsGoalCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
-  void modifyCallback(const std_msgs::String::ConstPtr &msg);
-
-  void processGoal();
-  void updateIgnoredCells(const GridCell &current_pos,
-                          const GridCell &goal_cell);
-  void processGoalCell(GridCell &goal_cell);
-  bool isTransformAvailable();
-
-  void publishMarker(double x, double y, int id);
-  void publishGoal(double x, double y, double yaw);
-  GridCell findClosestLaneParallel(const std::vector<int> &map, int width,
-                                   GridCell start);
-  GridCell exploreFarthestParallel(
-      const std::unordered_set<GridCell, GridCellHash> &cluster,
-      const GridCell &start, double eps);
-
-  static inline int gridToIndex(int x, int y, int width) {
-    return y * width + x;
+  static double getAngleRadians(const WorldPose &a, const WorldPose &b) {
+    double dx = b.x - a.x;
+    double dy = b.y - a.y;
+    return std::atan2(dy, dx);
   }
 
-  static inline GridCell indexToGrid(int index, int width) {
-    return GridCell(index % width, index / width);
+  static double mapDistance(const MapPose &a, const MapPose &b) {
+    double dx = a.x - b.x;
+    double dy = a.y - b.y;
+    return std::sqrt(dx * dx + dy * dy);
   }
 
-  GridCell pointToGrid(const Point &point, const Map &map) {
-    GridCell cell;
-    cell.x = static_cast<int>(round((point.x - map.origin.x) / map.resolution));
-    cell.y = static_cast<int>(round((point.y - map.origin.y) / map.resolution));
-    return cell;
+  static double worldDistance(const WorldPose &a, const WorldPose &b) {
+    double dx = a.x - b.x;
+    double dy = a.y - b.y;
+    return std::sqrt(dx * dx + dy * dy);
   }
 
-  Point gridToPoint(const GridCell &cell, const Map &map) {
-    Point point;
-    point.x = cell.x * map.resolution + map.origin.x;
-    point.y = cell.y * map.resolution + map.origin.y;
-    return point;
+  static MapPose getMapPoseFromWorldPose(const WorldPose &pose,
+                                         const Map &map) {
+    MapPose map_pose;
+    map_pose.x = static_cast<int>((pose.x - map.origin.x) / map.resolution);
+    map_pose.y = static_cast<int>((pose.y - map.origin.y) / map.resolution);
+    return map_pose;
   }
 
-  static double distanceGrid(const GridCell &a, const GridCell &b) {
-    return sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2));
+  static WorldPose getWorldPoseFromMapPose(const MapPose &pose,
+                                           const Map &map) {
+    WorldPose world_pose;
+    world_pose.x = map.origin.x + (pose.x * map.resolution);
+    world_pose.y = map.origin.y + (pose.y * map.resolution);
+    return world_pose;
   }
 
-  static double distancePoint(const Point &a, const Point &b) {
-    return sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2));
-  }
-};
+  static MapPose findClosestMiddleLane(const MapPose &pose, const Map &map,
+                                       int radius) {
+    const int dx[] = {0, 1, 0, -1, 1, -1, 1, -1};
+    const int dy[] = {-1, 0, 1, 0, -1, 1, 1, -1};
 
-GridCell GoalGenerator::findClosestLaneParallel(const std::vector<int> &map,
-                                                int width, GridCell start) {
-  const int num_threads = 8;
-  std::vector<std::future<GridCell>> futures;
+    std::queue<std::pair<MapPose, int>> q;
 
-  auto searchSection = [&](int startY, int endY) -> GridCell {
-    for (int y = startY; y < endY; ++y) {
-      for (int x = 0; x < width; ++x) {
-        if (map[gridToIndex(x, y, width)] == 1) {
-          return GridCell(x, y);
+    auto hashFunc = [&map](const MapPose &p) { return p.y * map.width + p.x; };
+
+    std::unordered_set<int> visited;
+
+    if (pose.x < 0 || pose.x >= map.width || pose.y < 0 ||
+        pose.y >= map.height) {
+      return MapPose(-1, -1);
+    }
+
+    q.push({pose, 0});
+    visited.insert(hashFunc(pose));
+
+    while (!q.empty()) {
+      auto pair = q.front();
+      q.pop();
+
+      MapPose current = pair.first;
+      int distance = pair.second;
+
+      if (map.grid[current.y][current.x] == 100) {
+        return current;
+      }
+
+      if (distance >= radius) {
+        continue;
+      }
+
+      for (int i = 0; i < 4; i++) {
+        int nx = current.x + dx[i];
+        int ny = current.y + dy[i];
+        MapPose neighbor(nx, ny);
+        int hash = hashFunc(neighbor);
+
+        if (nx >= 0 && nx < map.width && ny >= 0 && ny < map.height &&
+            visited.find(hash) == visited.end()) {
+          visited.insert(hash);
+          q.push({neighbor, distance + 1});
         }
       }
     }
-    return GridCell(-1, -1);
-  };
 
-  int sectionHeight = map.size() / width / num_threads;
-  for (int i = 0; i < num_threads; ++i) {
-    int startY = i * sectionHeight;
-    int endY =
-        (i == num_threads - 1) ? map.size() / width : (i + 1) * sectionHeight;
-    futures.push_back(
-        std::async(std::launch::async, searchSection, startY, endY));
+    return MapPose(-1, -1);
   }
 
-  GridCell closest(-1, -1);
-  double minDist = std::numeric_limits<double>::max();
-  for (auto &f : futures) {
-    GridCell result = f.get();
-    if (result.x != -1) {
-      double dist = distanceGrid(start, result);
-      if (dist < minDist) {
-        minDist = dist;
-        closest = result;
-      }
-    }
-  }
+  static MapPose exploreMiddleLane(const MapPose &start, const Map &map) {
+    const int dx[] = {0, 1, 0, -1, 1, -1, 1, -1};
+    const int dy[] = {-1, 0, 1, 0, -1, 1, 1, -1};
 
-  return closest;
-}
+    std::queue<MapPose> q;
+    std::unordered_set<int> visited;
 
-GridCell GoalGenerator::exploreFarthestParallel(
-    const std::unordered_set<GridCell, GridCellHash> &cluster,
-    const GridCell &start, double eps) {
+    auto hashFunc = [&map](const MapPose &p) { return p.y * map.width + p.x; };
 
-  const int num_threads = 4;
-  std::vector<std::future<std::pair<GridCell, double>>> futures;
+    q.push(start);
+    visited.insert(hashFunc(start));
 
-  auto exploreSection =
-      [&](const std::vector<GridCell> &cells) -> std::pair<GridCell, double> {
-    GridCell farthest = start;
-    double maxDist = 0;
-    for (const auto &cell : cells) {
-      double dist = distanceGrid(start, cell);
-      if (dist > maxDist) {
-        maxDist = dist;
-        farthest = cell;
-      }
-    }
-    return {farthest, maxDist};
-  };
+    MapPose last_cell = start;
 
-  std::vector<GridCell> clusterVec(cluster.begin(), cluster.end());
-  int sectionSize = clusterVec.size() / num_threads;
+    while (!q.empty()) {
+      MapPose current = q.front();
+      q.pop();
 
-  for (int i = 0; i < num_threads; ++i) {
-    int startIdx = i * sectionSize;
-    int endIdx =
-        (i == num_threads - 1) ? clusterVec.size() : (i + 1) * sectionSize;
-    std::vector<GridCell> section(clusterVec.begin() + startIdx,
-                                  clusterVec.begin() + endIdx);
-    futures.push_back(std::async(std::launch::async, exploreSection, section));
-  }
+      last_cell = current;
 
-  GridCell farthest = start;
-  double maxDist = 0;
-  for (auto &f : futures) {
-    auto [cell, dist] = f.get();
-    if (dist > maxDist) {
-      maxDist = dist;
-      farthest = cell;
-    }
-  }
+      for (int i = 0; i < 4; i++) {
+        int nx = current.x + dx[i];
+        int ny = current.y + dy[i];
+        MapPose neighbor(nx, ny);
+        int hash = hashFunc(neighbor);
 
-  return farthest;
-}
-
-void GoalGenerator::updateIgnoredCells(const GridCell &current_pos,
-                                       const GridCell &goal_cell) {
-  int size_of_crop = static_cast<int>(distanceGrid(current_pos, goal_cell));
-
-  for (int i = std::max(0, current_pos.x - size_of_crop);
-       i <= std::min(current_map_.width - 1, current_pos.x + size_of_crop);
-       i++) {
-    for (int j = std::max(0, current_pos.y - size_of_crop);
-         j <= std::min(current_map_.height - 1, current_pos.y + size_of_crop);
-         j++) {
-      ignored_cells_[j][i] = true;
-    }
-  }
-}
-
-void GoalGenerator::processGoalCell(GridCell &goal_cell) {
-  if (goal_cell == GridCell(0, 0)) {
-    goal_cell = last_goal_cell_;
-  }
-
-  GridCell goal_cell_e;
-  goal_cell_e.x = goal_cell.x + 120 * cos(current_pose_.yaw + 0);
-  goal_cell_e.y = goal_cell.y + 120 * sin(current_pose_.yaw + 0);
-
-  // ROS_INFO("Goal given at x %d y %d with map size as %d x %d", goal_cell_e.x,
-  //          goal_cell_e.y, current_map_.width, current_map_.height);
-
-  if (goal_cell_e.x < 50 || goal_cell_e.y < 50 ||
-      goal_cell_e.x > current_map_.width - 50 ||
-      goal_cell_e.y > current_map_.height - 50) {
-
-    std_msgs::String resize_msg;
-    resize_msg.data = "resize";
-    modify_pub_.publish(resize_msg);
-    ROS_INFO("Published resize message");
-  }
-
-  goal_cell_e.x =
-      std::max(51, std::min(current_map_.width - 51, goal_cell_e.x));
-  goal_cell_e.y =
-      std::max(51, std::min(current_map_.height - 51, goal_cell_e.y));
-
-  Point goal_point = gridToPoint(goal_cell_e, current_map_);
-  publishMarker(goal_point.x, goal_point.y, 1);
-  publishGoal(goal_point.x, goal_point.y, current_pose_.yaw);
-
-  last_goal_cell_ = goal_cell;
-}
-
-GoalGenerator::GoalGenerator(ros::NodeHandle &nh)
-    : tf_listener_(tf_buffer_), last_goal_cell_(-1, -1), odom_received_(false),
-      map_received_(false) {
-  initializePublishers(nh);
-  initializeSubscribers(nh);
-  goal_thread_ = std::thread(&GoalGenerator::processGoal, this);
-}
-
-GoalGenerator::~GoalGenerator() {
-  if (goal_thread_.joinable()) {
-    goal_thread_.join();
-  }
-}
-
-bool GoalGenerator::isTransformAvailable() {
-  try {
-    geometry_msgs::TransformStamped transform = tf_buffer_.lookupTransform(
-        "robot/odom", "robot/base_link", ros::Time(0), ros::Duration(1.0));
-    return true;
-  } catch (tf2::TransformException &ex) {
-    ROS_WARN_THROTTLE(5.0, "Transform not available: %s", ex.what());
-    return false;
-  }
-}
-
-void GoalGenerator::initializePublishers(ros::NodeHandle &nh) {
-  goal_pub_ =
-      nh.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
-  marker_pub_ =
-      nh.advertise<visualization_msgs::Marker>("/nav/local_goal_marker", 10);
-  modify_pub_ = nh.advertise<std_msgs::String>("/nav/needs_modify", 10);
-}
-
-void GoalGenerator::initializeSubscribers(ros::NodeHandle &nh) {
-  map_sub_ =
-      nh.subscribe("nav/global_map", 1, &GoalGenerator::mapCallback, this);
-  odom_sub_ = nh.subscribe("robot/dlo/odom_node/odom", 1,
-                           &GoalGenerator::odomCallback, this);
-  modify_sub_ = nh.subscribe("/nav/needs_modify", 1,
-                             &GoalGenerator::modifyCallback, this);
-  gps_goal_sub_ =
-      nh.subscribe("/nav/gps_goal", 1, &GoalGenerator::gpsGoalCallback, this);
-}
-
-void GoalGenerator::mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg) {
-  std::lock_guard<std::mutex> lock(map_mutex_);
-
-  current_map_.height = msg->info.height;
-  current_map_.width = msg->info.width;
-  current_map_.origin.x = msg->info.origin.position.x;
-  current_map_.origin.y = msg->info.origin.position.y;
-  current_map_.resolution = msg->info.resolution;
-
-  current_map_.grid.resize(current_map_.width * current_map_.height, 0);
-  ignored_cells_.resize(current_map_.height,
-                        std::vector<bool>(current_map_.width, false));
-  valid_lane_cells_.clear();
-
-  for (int y = 0; y < current_map_.height; ++y) {
-    for (int x = 0; x < current_map_.width; ++x) {
-      int i = gridToIndex(x, y, current_map_.width);
-      if (!ignored_cells_[y][x]) {
-        if (msg->data[i] == 100) {
-          current_map_.grid[i] = 1;
-          valid_lane_cells_.insert(GridCell(x, y));
-        } else {
-          current_map_.grid[i] = 0;
+        if (nx >= 0 && nx < map.width && ny >= 0 && ny < map.height &&
+            visited.find(hash) == visited.end() && map.grid[ny][nx] == 100) {
+          visited.insert(hash);
+          q.push(neighbor);
         }
-      } else {
-        current_map_.grid[i] = 0;
       }
     }
+
+    return last_cell;
   }
-  map_received_ = true;
-}
 
-void GoalGenerator::modifyCallback(const std_msgs::String::ConstPtr &msg) {
-  if (msg->data == "resize") {
-    std::lock_guard<std::mutex> lock(map_mutex_);
-    std::lock_guard<std::mutex> pose_lock(pose_mutex_);
+  static void removeMapBehindBot(Map &map, const WorldPose &bot_pose,
+                                 double angle) {
+    while (angle > M_PI)
+      angle -= 2 * M_PI;
+    while (angle < -M_PI)
+      angle += 2 * M_PI;
 
-    ROS_INFO("Got resize message...");
+    unsigned int num_threads = std::thread::hardware_concurrency();
+    if (num_threads == 0)
+      num_threads = 4;
 
-    ignored_cells_.clear();
-    ignored_cells_.resize(current_map_.height,
-                          std::vector<bool>(current_map_.width, false));
-  }
-}
+    std::vector<std::thread> threads(num_threads);
 
-void GoalGenerator::gpsGoalCallback(
-    const geometry_msgs::PoseStamped::ConstPtr &msg) {
-  Point gps_goal;
+    auto process_rows = [&](int start_y, int end_y) {
+      for (int y = start_y; y < end_y; y++) {
+        for (int x = 0; x < map.width; x++) {
+          MapPose map_pose(x, y);
+          WorldPose world_pose = Utils::getWorldPoseFromMapPose(map_pose, map);
 
-  gps_goal.x = msg->pose.position.x;
-  gps_goal.y = msg->pose.position.y;
-  gps_counter_ = msg->pose.position.z;
+          double angle_to_pixel = Utils::getAngleRadians(bot_pose, world_pose);
 
-  ROS_INFO("Gps goals at: %f %f", gps_goal.x, gps_goal.y);
+          double angle_diff = angle_to_pixel - angle;
 
-  double distance = distancePoint(gps_goal, current_pose_.world_position);
+          while (angle_diff > M_PI)
+            angle_diff -= 2 * M_PI;
+          while (angle_diff < -M_PI)
+            angle_diff += 2 * M_PI;
 
-  if ((gps_counter_ > 1 && gps_counter_ <= total_gps_points_) ||
-      (distance < gps_tolerence_) && gps_counter_ == 1) {
-    paused_ = true;
-    publishGoal(gps_goal.x, gps_goal.y, current_pose_.yaw);
-    publishMarker(gps_goal.x, gps_goal.y, 1);
-  } else if (gps_counter_ > total_gps_points_) {
-    paused_ = false;
-  }
-}
-
-void GoalGenerator::odomCallback(const nav_msgs::Odometry::ConstPtr &msg) {
-  std::lock_guard<std::mutex> lock(pose_mutex_);
-
-  current_pose_.world_position.x = msg->pose.pose.position.x;
-  current_pose_.world_position.y = msg->pose.pose.position.y;
-  current_pose_.map_position =
-      pointToGrid(current_pose_.world_position, current_map_);
-
-  double roll, pitch;
-  tf2::Quaternion q(msg->pose.pose.orientation.x, msg->pose.pose.orientation.y,
-                    msg->pose.pose.orientation.z, msg->pose.pose.orientation.w);
-  tf2::Matrix3x3(q).getRPY(roll, pitch, current_pose_.yaw);
-
-  odom_received_ = true;
-}
-
-void GoalGenerator::publishMarker(double x, double y, int id) {
-  visualization_msgs::Marker marker;
-  marker.header.frame_id = "robot/odom";
-  marker.header.stamp = ros::Time::now();
-  marker.ns = "local_goal_marker";
-  marker.id = id;
-  marker.type = visualization_msgs::Marker::SPHERE;
-  marker.action = visualization_msgs::Marker::ADD;
-  marker.pose.position.x = x;
-  marker.pose.position.y = y;
-  marker.pose.position.z = 0.0;
-  marker.pose.orientation.w = 1.0;
-  marker.scale.x = marker.scale.y = marker.scale.z = 0.5;
-  marker.color.a = 1.0;
-  marker.color.r = 0.0;
-  marker.color.b = 1.0;
-  marker.color.g = 0.0;
-
-  marker_pub_.publish(marker);
-}
-
-void GoalGenerator::publishGoal(double x, double y, double yaw) {
-  geometry_msgs::PoseStamped goal;
-  goal.header.frame_id = "robot/odom";
-  goal.header.stamp = ros::Time::now();
-  goal.pose.position.x = x;
-  goal.pose.position.y = y;
-  goal.pose.position.z = 0.0;
-
-  tf2::Quaternion q;
-  q.setRPY(0, 0, yaw);
-  goal.pose.orientation.x = q.x();
-  goal.pose.orientation.y = q.y();
-  goal.pose.orientation.z = q.z();
-  goal.pose.orientation.w = q.w();
-
-  goal_pub_.publish(goal);
-}
-
-void GoalGenerator::processGoal() {
-  while (ros::ok()) {
-    if (!isTransformAvailable()) {
-      ROS_WARN_THROTTLE(
-          5.0,
-          "Waiting for transform between robot/odom and robot/base_link...");
-      std::this_thread::sleep_for(std::chrono::milliseconds(200));
-      continue;
-    }
-
-    if (odom_received_ && map_received_ && !paused_) {
-      GridCell goal_cell;
-      GridCell closest_lane_cell;
-
-      {
-        std::lock_guard<std::mutex> map_lock(map_mutex_);
-        std::lock_guard<std::mutex> pose_lock(pose_mutex_);
-
-        if (last_goal_cell_ == GridCell(-1, -1)) {
-          closest_lane_cell =
-              findClosestLaneParallel(current_map_.grid, current_map_.width,
-                                      current_pose_.map_position);
-          goal_cell =
-              exploreFarthestParallel(valid_lane_cells_, closest_lane_cell, 5);
-        } else {
-          if (valid_lane_cells_.empty()) {
-            goal_cell = last_goal_cell_;
-          } else {
-            closest_lane_cell = findClosestLaneParallel(
-                current_map_.grid, current_map_.width, last_goal_cell_);
-            goal_cell = exploreFarthestParallel(valid_lane_cells_,
-                                                closest_lane_cell, 5);
+          if (std::abs(angle_diff) > M_PI / 2) {
+            map.grid[y][x] = -1;
           }
         }
-
-        updateIgnoredCells(current_pose_.map_position, goal_cell);
-        processGoalCell(goal_cell);
       }
+    };
 
-      map_received_ = false;
-      odom_received_ = false;
+    int rows_per_thread = map.height / num_threads;
+
+    for (unsigned int i = 0; i < num_threads; i++) {
+      int start_y = i * rows_per_thread;
+      int end_y =
+          (i == num_threads - 1) ? map.height : (i + 1) * rows_per_thread;
+      threads[i] = std::thread(process_rows, start_y, end_y);
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    for (auto &t : threads) {
+      t.join();
+    }
   }
-}
+};
+
+class GoalGenner {
+private:
+  ros::Timer timer;
+
+  ros::NodeHandle nh;
+  ros::NodeHandle private_nh{"~"};
+
+  ros::Subscriber map_sub;
+  ros::Subscriber odom_sub;
+  ros::Subscriber gps_sub;
+
+  ros::Publisher marker_pub;
+  ros::Publisher map_pub;
+  ros::Publisher goal_pub;
+
+  bool have_map = false;
+  bool have_odom = false;
+
+  int explore_distance{50};
+  int pose_log_offset{3};
+  int pose_goal_offset{10};
+  int total_gps_goals{4};
+  int gps_capture_distance{5};
+
+  Map current_map;
+  BotPose prev_pose;
+  BotPose current_pose;
+
+  bool paused = false;
+
+  ros::Time last_map_time;
+  ros::Time last_odom_time;
+  double topic_timeout{5.0};
+
+  void createSphereMarker(double x, double y, int id) {
+    visualization_msgs::Marker marker;
+
+    marker.header.frame_id = "robot/odom";
+    marker.header.stamp = ros::Time::now();
+
+    marker.ns = "sphere_markers";
+    marker.id = id;
+
+    marker.type = visualization_msgs::Marker::SPHERE;
+
+    marker.action = visualization_msgs::Marker::ADD;
+
+    marker.pose.position.x = x;
+    marker.pose.position.y = y;
+    marker.pose.position.z = 0;
+
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+
+    marker.scale.x = 1.0;
+    marker.scale.y = 1.0;
+    marker.scale.z = 1.0;
+
+    marker.color.r = 0.0f;
+    marker.color.g = 0.0f;
+    marker.color.b = 1.0f;
+    marker.color.a = 1.0;
+
+    marker_pub.publish(marker);
+  }
+
+  void createArrowMarker(double x1, double y1, double x2, double y2,
+                         int id = 0) {
+    visualization_msgs::Marker marker;
+
+    marker.header.frame_id = "robot/odom";
+    marker.header.stamp = ros::Time::now();
+
+    marker.ns = "arrow_markers";
+    marker.id = id;
+
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.action = visualization_msgs::Marker::ADD;
+
+    geometry_msgs::Point start, end;
+    start.x = x1;
+    start.y = y1;
+    start.z = 0;
+    end.x = x2;
+    end.y = y2;
+    end.z = 0;
+
+    marker.points.push_back(start);
+    marker.points.push_back(end);
+
+    marker.scale.x = 0.1;
+    marker.scale.y = 0.2;
+    marker.scale.z = 0.1;
+
+    marker.color.r = 1.0f;
+    marker.color.g = 0.0f;
+    marker.color.b = 0.0f;
+    marker.color.a = 1.0;
+
+    marker_pub.publish(marker);
+  }
+
+  void publishMap(const Map &map) {
+    nav_msgs::OccupancyGrid grid_msg;
+
+    grid_msg.header.stamp = ros::Time::now();
+    grid_msg.header.frame_id = "robot/odom";
+
+    grid_msg.info.resolution = map.resolution;
+    grid_msg.info.width = map.width;
+    grid_msg.info.height = map.height;
+
+    grid_msg.info.origin.position.x = map.origin.x;
+    grid_msg.info.origin.position.y = map.origin.y;
+    grid_msg.info.origin.position.z = 0.0;
+
+    grid_msg.info.origin.orientation.x = 0.0;
+    grid_msg.info.origin.orientation.y = 0.0;
+    grid_msg.info.origin.orientation.z = 0.0;
+    grid_msg.info.origin.orientation.w = 1.0;
+
+    grid_msg.data.resize(map.width * map.height);
+
+    for (int y = 0; y < map.height; y++) {
+      for (int x = 0; x < map.width; x++) {
+        int index = y * map.width + x;
+        grid_msg.data[index] = map.grid[y][x];
+      }
+    }
+
+    map_pub.publish(grid_msg);
+  }
+
+  void publishGoal(const WorldPose &target, double yaw) {
+    geometry_msgs::PoseStamped goal;
+
+    goal.header.frame_id = "robot/odom";
+    goal.header.stamp = ros::Time::now();
+
+    goal.pose.position.x = target.x;
+    goal.pose.position.y = target.y;
+    goal.pose.position.z = 0.0;
+
+    tf2::Quaternion q;
+    q.setRPY(0, 0, yaw);
+
+    goal.pose.orientation.x = q.x();
+    goal.pose.orientation.y = q.y();
+    goal.pose.orientation.z = q.z();
+    goal.pose.orientation.w = q.w();
+
+    goal_pub.publish(goal);
+  }
+
+  void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg) {
+    last_map_time = ros::Time::now();
+
+    current_map.width = msg->info.width;
+    current_map.height = msg->info.height;
+    current_map.resolution = msg->info.resolution;
+    current_map.origin.x = msg->info.origin.position.x;
+    current_map.origin.y = msg->info.origin.position.y;
+    current_map.grid.resize(current_map.height,
+                            std::vector<int>(current_map.width, -1));
+
+    for (int y = 0; y < current_map.height; y++) {
+      for (int x = 0; x < current_map.width; x++) {
+        int index = y * current_map.width + x;
+        current_map.grid[y][x] = msg->data[index];
+      }
+    }
+
+    have_map = true;
+  }
+
+  void odomCallback(const nav_msgs::Odometry::ConstPtr &msg) {
+    last_odom_time = ros::Time::now();
+
+    current_pose.world_pose.x = msg->pose.pose.position.x;
+    current_pose.world_pose.y = msg->pose.pose.position.y;
+    tf2::Quaternion q(
+        msg->pose.pose.orientation.x, msg->pose.pose.orientation.y,
+        msg->pose.pose.orientation.z, msg->pose.pose.orientation.w);
+    double roll, pitch, yaw;
+    tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
+    current_pose.roll = roll;
+    current_pose.pitch = pitch;
+    current_pose.yaw = yaw;
+
+    if (have_map) {
+      current_pose.map_pose =
+          Utils::getMapPoseFromWorldPose(current_pose.world_pose, current_map);
+    }
+
+    if (!have_odom ||
+        Utils::worldDistance(prev_pose.world_pose, current_pose.world_pose) >
+            pose_log_offset) {
+      prev_pose = current_pose;
+    }
+
+    have_odom = true;
+  }
+
+  void gpsCallback(const geometry_msgs::PoseStamped::ConstPtr msg) {
+    WorldPose gps_wp;
+    gps_wp.x = msg->pose.position.x;
+    gps_wp.y = msg->pose.position.y;
+
+    int gps_counter = msg->pose.position.z;
+
+    if ((gps_counter > 1 && gps_counter <= total_gps_goals ||
+         (Utils::worldDistance(current_pose.world_pose, gps_wp) <
+          gps_capture_distance) &&
+             gps_counter == 1)) {
+      ROS_INFO("%f %f %d", gps_wp.x, gps_wp.y, gps_counter);
+      paused = true;
+      createSphereMarker(gps_wp.x, gps_wp.y, 2);
+      publishGoal(gps_wp, current_pose.yaw);
+    } else {
+      paused = false;
+    }
+  }
+
+  void timerCallback(const ros::TimerEvent &) {
+    ros::Time current_time = ros::Time::now();
+    bool map_active = (current_time - last_map_time).toSec() < topic_timeout;
+    bool odom_active = (current_time - last_odom_time).toSec() < topic_timeout;
+
+    if (!map_active) {
+      ROS_WARN_THROTTLE(3.0,
+                        "No recent map data received, halting goal generation");
+      have_map = false;
+    }
+
+    if (!odom_active) {
+      ROS_WARN_THROTTLE(
+          3.0, "No recent odom data received, halting goal generation");
+      have_odom = false;
+    }
+
+    if (map_active && odom_active) {
+      findGoal();
+    }
+  }
+
+public:
+  GoalGenner() {
+    private_nh.param<int>("explore_distance", explore_distance, 50);
+    private_nh.param<int>("pose_log_offset", pose_log_offset, 3);
+    private_nh.param<int>("pose_goal_offset", pose_goal_offset, 10);
+    private_nh.param<int>("total_gps_goals", total_gps_goals, 2);
+    private_nh.param<int>("gps_capture_distance", gps_capture_distance, 5);
+
+    ROS_INFO("Taking explore distance as %d", explore_distance);
+    ROS_INFO("Taking pose log offset as %d", pose_log_offset);
+    ROS_INFO("Taking pose goal offset as %d", pose_goal_offset);
+    ROS_INFO("Taking total_gps_goals as %d", total_gps_goals);
+    ROS_INFO("Taking gps capture distance as %d", gps_capture_distance);
+
+    last_map_time = ros::Time::now();
+    last_odom_time = ros::Time::now();
+
+    map_sub = nh.subscribe("/map", 1, &GoalGenner::mapCallback, this);
+    odom_sub = nh.subscribe("/odom", 1, &GoalGenner::odomCallback, this);
+    gps_sub = nh.subscribe("/gps_goal", 1, &GoalGenner::gpsCallback, this);
+
+    timer =
+        nh.createTimer(ros::Duration(0.2), &GoalGenner::timerCallback, this);
+
+    marker_pub = nh.advertise<visualization_msgs::Marker>("goal_marker", 10);
+
+    /* map_pub = nh.advertise<nav_msgs::OccupancyGrid>("/modified_map", 10); */
+    goal_pub =
+        nh.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
+  }
+
+  void findGoal() {
+    if (!(have_map && have_odom) || paused) {
+      return;
+    }
+
+    double theta;
+    if (Utils::worldDistance(current_pose.world_pose, prev_pose.world_pose) <
+        0.1) {
+      theta = current_pose.yaw;
+    } else {
+      theta =
+          Utils::getAngleRadians(prev_pose.world_pose, current_pose.world_pose);
+    }
+
+    Utils::removeMapBehindBot(current_map, current_pose.world_pose, theta);
+
+    MapPose nearest_lane = Utils::findClosestMiddleLane(
+        current_pose.map_pose, current_map, explore_distance);
+    MapPose farthest_lane = Utils::exploreMiddleLane(nearest_lane, current_map);
+    WorldPose wp = Utils::getWorldPoseFromMapPose(farthest_lane, current_map);
+
+    wp.x = wp.x + pose_goal_offset * cos(theta);
+    wp.y = wp.y + pose_goal_offset * sin(theta);
+
+    createSphereMarker(wp.x, wp.y, 1);
+    publishGoal(wp, theta);
+  }
+};
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "goal_gen");
-  ros::NodeHandle nh;
 
-  ROS_INFO("Goal Gen Started.");
+  ROS_INFO("Goal Gen Node Started.");
 
-  GoalGenerator goal_generator(nh);
+  GoalGenner goal_gen;
+
   ros::spin();
 
   return 0;
