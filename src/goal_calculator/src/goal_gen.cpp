@@ -4,6 +4,7 @@
 #include "nav_msgs/Odometry.h"
 #include "ros/console.h"
 #include "ros/ros.h"
+#include "std_msgs/String.h"
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "tf2/LinearMath/Quaternion.h"
 #include "visualization_msgs/Marker.h"
@@ -231,6 +232,7 @@ private:
   ros::Publisher marker_pub;
   ros::Publisher map_pub;
   ros::Publisher goal_pub;
+  ros::Publisher modify_pub;
 
   bool have_map = false;
   bool have_odom = false;
@@ -475,7 +477,7 @@ public:
     ROS_INFO("Taking explore distance as %d", explore_distance);
     ROS_INFO("Taking pose log offset as %d", pose_log_offset);
     ROS_INFO("Taking pose goal offset as %d", pose_goal_offset);
-    ROS_INFO("Taking total_gps_goals as %d", total_gps_goals);
+    ROS_INFO("Taking total gps goals as %d", total_gps_goals);
     ROS_INFO("Taking gps capture distance as %d", gps_capture_distance);
 
     last_map_time = ros::Time::now();
@@ -489,6 +491,7 @@ public:
         nh.createTimer(ros::Duration(0.2), &GoalGenner::timerCallback, this);
 
     marker_pub = nh.advertise<visualization_msgs::Marker>("goal_marker", 10);
+    modify_pub = nh.advertise<std_msgs::String>("modify_pub", 10);
 
     /* map_pub = nh.advertise<nav_msgs::OccupancyGrid>("/modified_map", 10); */
     goal_pub =
@@ -518,6 +521,17 @@ public:
 
     wp.x = wp.x + pose_goal_offset * cos(theta);
     wp.y = wp.y + pose_goal_offset * sin(theta);
+    MapPose mp = Utils::getMapPoseFromWorldPose(wp, current_map);
+
+    if (wp.x >= current_map.height || wp.x < 0 || wp.y >= current_map.width ||
+        wp.x < 0) {
+      std_msgs::String resize_msg;
+      resize_msg.data = "resize";
+      modify_pub.publish(resize_msg);
+    }
+
+    wp.x = std::max(0, std::min(mp.x, current_map.height));
+    wp.y = std::max(0, std::min(mp.x, current_map.width));
 
     createSphereMarker(wp.x, wp.y, 1);
     publishGoal(wp, theta);

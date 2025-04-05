@@ -6,6 +6,7 @@
     <remap from="map" to="nav/global_map" />
     <remap from="odom" to="/robot/dlo/odom_node/odom" />
     <remap from="gps_goal" to="/nav/gps_goal" />
+    <remap from="modify_pub" to="nav/needs_modify" />
 
     <param name="~explore_distance" value="100" />
     <param name="~pose_log_offset" value="3" />
