@@ -32,9 +32,9 @@ public:
 
     try {
       geometry_msgs::TransformStamped transform_stamped;
-      transform_stamped = tf_buffer->lookupTransform(
-          "robot/base_link", cloud_msg->header.frame_id, ros::Time(0),
-          ros::Duration(1.0));
+      transform_stamped =
+          tf_buffer->lookupTransform("robot/odom", cloud_msg->header.frame_id,
+                                     ros::Time(0), ros::Duration(1.0));
 
       sensor_msgs::PointCloud2 transformed_cloud;
       tf2::doTransform(*cloud_msg, transformed_cloud, transform_stamped);

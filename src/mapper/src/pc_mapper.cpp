@@ -112,18 +112,6 @@ private:
     return {x, y};
   }
 
-  GlobalPoint cloudPointToGlobal(const pcl::PointXYZRGB &cloud_point,
-                                 const BotPosition &bot_pose) {
-    double cos_yaw = cos(bot_pose.yaw);
-    double sin_yaw = sin(bot_pose.yaw);
-
-    double rotated_x = cloud_point.x * cos_yaw - cloud_point.y * sin_yaw;
-    double rotated_y = cloud_point.x * sin_yaw + cloud_point.y * cos_yaw;
-
-    return {rotated_x + bot_pose.global_pose.x,
-            rotated_y + bot_pose.global_pose.y};
-  }
-
   void maskCallback(const sensor_msgs::ImageConstPtr &msg) {
     std::lock_guard<std::mutex> lock(mask_mutex_);
     try {
@@ -235,11 +223,13 @@ private:
           continue;
         }
 
-        GlobalPoint global_point = cloudPointToGlobal(point, current_bot_pose_);
+        GlobalPoint global_point;
+        global_point.x = point.x;
+        global_point.y = point.y;
 
         pcl::PointXYZ pcl_point;
-        pcl_point.x = global_point.x;
-        pcl_point.y = global_point.y;
+        pcl_point.x = point.x;
+        pcl_point.y = point.y;
         pcl_point.z = 0.0;
 
         uchar mask_value = current_mask_.at<uchar>(row, col);
