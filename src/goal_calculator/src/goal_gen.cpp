@@ -169,17 +169,12 @@ public:
   }
 
   static void removeMapBehindBot(Map &map, const WorldPose &bot_pose,
-                                 double angle) {
+                                 double angle, int height_to_remove,
+                                 int width_to_remove) {
     while (angle > M_PI)
       angle -= 2 * M_PI;
     while (angle < -M_PI)
       angle += 2 * M_PI;
-
-    unsigned int num_threads = std::thread::hardware_concurrency();
-    if (num_threads == 0)
-      num_threads = 4;
-
-    std::vector<std::thread> threads(num_threads);
 
     auto process_rows = [&](int start_y, int end_y) {
       for (int y = start_y; y < end_y; y++) {
@@ -196,25 +191,19 @@ public:
           while (angle_diff < -M_PI)
             angle_diff += 2 * M_PI;
 
-          if (std::abs(angle_diff) > M_PI / 2) {
+          double dx = world_pose.x - bot_pose.x;
+          double dy = world_pose.y - bot_pose.y;
+
+          if (std::abs(angle_diff) > M_PI / 2 &&
+              std::abs(dx) <= width_to_remove &&
+              std::abs(dy) <= height_to_remove) {
             map.grid[y][x] = -1;
           }
         }
       }
     };
 
-    int rows_per_thread = map.height / num_threads;
-
-    for (unsigned int i = 0; i < num_threads; i++) {
-      int start_y = i * rows_per_thread;
-      int end_y =
-          (i == num_threads - 1) ? map.height : (i + 1) * rows_per_thread;
-      threads[i] = std::thread(process_rows, start_y, end_y);
-    }
-
-    for (auto &t : threads) {
-      t.join();
-    }
+    process_rows(0, map.height);
   }
 };
 
@@ -512,7 +501,8 @@ public:
           Utils::getAngleRadians(prev_pose.world_pose, current_pose.world_pose);
     }
 
-    Utils::removeMapBehindBot(current_map, current_pose.world_pose, theta);
+    Utils::removeMapBehindBot(current_map, current_pose.world_pose, theta, 10,
+                              10);
 
     MapPose nearest_lane = Utils::findClosestMiddleLane(
         current_pose.map_pose, current_map, explore_distance);
@@ -523,8 +513,8 @@ public:
     wp.y = wp.y + pose_goal_offset * sin(theta);
     MapPose mp = Utils::getMapPoseFromWorldPose(wp, current_map);
 
-    if (wp.x >= current_map.height || wp.x < 0 || wp.y >= current_map.width ||
-        wp.x < 0) {
+    if (wp.x >= current_map.height - 50 || wp.x < 50 ||
+        wp.y >= current_map.width - 50 || wp.x < 50) {
       std_msgs::String resize_msg;
       resize_msg.data = "resize";
       modify_pub.publish(resize_msg);
