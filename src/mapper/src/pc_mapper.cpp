@@ -1,15 +1,16 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <cv_bridge/cv_bridge.h>
-#include <geometry_msgs/TransformStamped.h>
 #include <limits>
 #include <mutex>
+#include <thread>
+#include <unordered_map>
+
+#include <cv_bridge/cv_bridge.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <nav_msgs/Odometry.h>
 #include <opencv2/opencv.hpp>
-#include <pcl/octree/octree_pointcloud.h>
-#include <pcl/octree/octree_search.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
@@ -22,85 +23,78 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
-#include <thread>
-#include <unordered_map>
 #include <visualization_msgs/Marker.h>
+
+struct GridCell {
+  int x, y;
+};
+
+struct GlobalPoint {
+  double x, y;
+};
+
+struct BotPosition {
+  GlobalPoint global_pose;
+  GridCell map_pose;
+  double yaw, roll, pitch;
+};
+
+struct RGB {
+  uint8_t r, g, b;
+};
+
+struct HSV {
+  float h, s, v;
+};
+
+struct OccupancyGrid {
+  double resolution;
+  double origin_x, origin_y;
+  int width, height;
+};
 
 class PCMapper {
 private:
-  struct GridCell {
-    int x, y;
-  };
-
-  struct GlobalPoint {
-    double x, y;
-  };
-
-  struct BotPosition {
-    GlobalPoint global_pose;
-    GridCell map_pose;
-    double yaw, roll, pitch;
-  };
-
-  struct RGB {
-    uint8_t r, g, b;
-  };
-
-  struct HSV {
-    float h, s, v;
-  };
-
-  struct OccupancyGrid {
-    double resolution;
-    double origin_x, origin_y;
-    int width, height;
-  };
-
-  ros::NodeHandle nh_;
-  ros::NodeHandle private_nh_{"~"};
-  ros::Publisher map_pub_;
+  ros::NodeHandle nh;
+  ros::NodeHandle private_nh{"~"};
+  ros::Publisher map_pub;
   ros::Publisher marker_pub_;
-  ros::Publisher pc_pub_;
-  ros::Publisher modify_pub_;
-  ros::Publisher goal_sleep_pub_;
-  ros::Publisher debug_cloud_pub_;
-  ros::Subscriber cloud_sub_;
-  ros::Subscriber odom_sub_;
-  ros::Subscriber mask_sub_;
-  ros::Subscriber modify_sub_;
+  ros::Publisher modify_pub;
+  ros::Publisher debug_cloud_pub;
+  ros::Subscriber cloud_sub;
+  ros::Subscriber odom_sub;
+  ros::Subscriber mask_sub;
+  ros::Subscriber modify_sub;
 
-  float prior_;
-  float prob_hit_;
-  float prob_miss_;
-  float min_prob_;
-  float max_prob_;
-  float obstacle_thresh_;
-  float octree_resolution_;
-  double resolution_;
-  int width_;
-  int height_;
+  float prior;
+  float prob_hit;
+  float prob_miss;
+  float min_prob;
+  float max_prob;
+  float obstacle_thresh;
+  double resolution;
+  int width;
+  int height;
 
-  BotPosition current_bot_pose_;
-  OccupancyGrid grid_;
-  std::vector<float> logOddsMap_;
-  cv::Mat current_mask_;
-  bool mask_received_;
-  std::mutex mask_mutex_;
+  BotPosition current_pose;
+  OccupancyGrid grid;
+  std::vector<float> log_odds_map;
+  cv::Mat current_mask;
+  bool got_mask;
+  std::mutex mask_mutex;
 
   bool map_resizing = false;
 
-  pcl::octree::OctreePointCloud<pcl::PointXYZ> obstacle_octree_;
-  pcl::octree::OctreePointCloud<pcl::PointXYZ> free_octree_;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr obstacle_cloud_;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr free_cloud_;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr obstacle_cloud;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr free_cloud;
 
   tf2_ros::Buffer tf_buffer;
   tf2_ros::TransformListener tf_listener;
 
   float probToLogOdds(float prob) { return log(prob / (1.0 - prob)); }
 
-  float logOddsToProb(float logOdds) {
-    return 1.0 - (1.0 / (1.0 + exp(logOdds)));
+  float logOddsToProb(float log_odds) {
+    return 1.0 - (1.0 / (1.0 + exp(log_odds)));
   }
 
   GridCell globalPointToPixelIndex(const GlobalPoint &global_point,
@@ -113,12 +107,12 @@ private:
   }
 
   void maskCallback(const sensor_msgs::ImageConstPtr &msg) {
-    std::lock_guard<std::mutex> lock(mask_mutex_);
+    std::lock_guard<std::mutex> lock(mask_mutex);
     try {
       cv_bridge::CvImagePtr cv_ptr =
           cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::MONO8);
-      current_mask_ = cv_ptr->image;
-      mask_received_ = true;
+      current_mask = cv_ptr->image;
+      got_mask = true;
     } catch (cv_bridge::Exception &e) {
       ROS_ERROR("cv_bridge exception: %s", e.what());
       return;
@@ -128,51 +122,45 @@ private:
   void resizeMap() {
     ROS_INFO("Creating new map centered at robot position");
 
-    grid_.origin_x =
-        current_bot_pose_.global_pose.x - (width_ * resolution_ / 2.0);
-    grid_.origin_y =
-        current_bot_pose_.global_pose.y - (height_ * resolution_ / 2.0);
+    grid.origin_x = current_pose.global_pose.x - (width * resolution / 2.0);
+    grid.origin_y = current_pose.global_pose.y - (height * resolution / 2.0);
 
-    ROS_INFO("Map initialized with origin as x %f and y %f", grid_.origin_x,
-             grid_.origin_y);
+    ROS_INFO("Map initialized with origin as x %f and y %f", grid.origin_x,
+             grid.origin_y);
 
-    logOddsMap_.clear();
-    logOddsMap_.resize(grid_.width * grid_.height, probToLogOdds(prior_));
+    log_odds_map.clear();
+    log_odds_map.resize(grid.width * grid.height, probToLogOdds(prior));
 
     nav_msgs::OccupancyGrid new_map;
-    new_map.info.resolution = grid_.resolution;
-    new_map.info.width = grid_.width;
-    new_map.info.height = grid_.height;
-    new_map.info.origin.position.x = grid_.origin_x;
-    new_map.info.origin.position.y = grid_.origin_y;
+    new_map.info.resolution = grid.resolution;
+    new_map.info.width = grid.width;
+    new_map.info.height = grid.height;
+    new_map.info.origin.position.x = grid.origin_x;
+    new_map.info.origin.position.y = grid.origin_y;
     new_map.info.origin.position.z = 0.0;
     new_map.info.origin.orientation.w = 1.0;
 
     new_map.data.clear();
-    new_map.data.resize(grid_.width * grid_.height, -1);
+    new_map.data.resize(grid.width * grid.height, -1);
 
     new_map.header.stamp = ros::Time::now();
     new_map.header.frame_id = "odom";
 
     updateMap(new_map);
-    map_pub_.publish(new_map);
+    map_pub.publish(new_map);
     ROS_INFO("New map created at robot position (%.2f, %.2f)",
-             current_bot_pose_.global_pose.x, current_bot_pose_.global_pose.y);
+             current_pose.global_pose.x, current_pose.global_pose.y);
   }
 
   bool isPointOutOfBounds(const GlobalPoint &point) {
-    GridCell cell = globalPointToPixelIndex(point, grid_);
-    return (cell.x < 0 || cell.x >= grid_.width || cell.y < 0 ||
-            cell.y >= grid_.height);
+    GridCell cell = globalPointToPixelIndex(point, grid);
+    return (cell.x < 0 || cell.x >= grid.width || cell.y < 0 ||
+            cell.y >= grid.height);
   }
 
   void resizeMapCallback(const std_msgs::String::ConstPtr &msg) {
     if (msg->data == "resize") {
       map_resizing = true;
-
-      std_msgs::String sleep_msg;
-      sleep_msg.data = "sleep";
-      goal_sleep_pub_.publish(sleep_msg);
 
       resizeMap();
     }
@@ -184,13 +172,16 @@ private:
       return;
     }
 
-    if (!mask_received_) {
+    if (!got_mask) {
       ROS_WARN_THROTTLE(
           1.0, "No mask received yet. Skipping point cloud processing.");
       return;
     }
 
-    std::lock_guard<std::mutex> lock(mask_mutex_);
+    std::lock_guard<std::mutex> lock(mask_mutex);
+
+    obstacle_cloud->clear();
+    free_cloud->clear();
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr current_cloud(
         new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -199,12 +190,11 @@ private:
     int cloud_width = msg->width;
     int cloud_height = msg->height;
 
-    if (cloud_height != current_mask_.rows ||
-        cloud_width != current_mask_.cols) {
+    if (cloud_height != current_mask.rows || cloud_width != current_mask.cols) {
       ROS_ERROR_THROTTLE(1.0,
                          "Mask and point cloud dimensions don't match! Mask: "
                          "%dx%d, Cloud: %dx%d",
-                         current_mask_.rows, current_mask_.cols, cloud_height,
+                         current_mask.rows, current_mask.cols, cloud_height,
                          cloud_width);
       return;
     }
@@ -232,9 +222,9 @@ private:
         pcl_point.y = point.y;
         pcl_point.z = 0.0;
 
-        uchar mask_value = current_mask_.at<uchar>(row, col);
+        uchar mask_value = current_mask.at<uchar>(row, col);
 
-        if (point.x < 4 && point.z < 0.1) {
+        if (point.z < 0.1) {
 
           if (isPointOutOfBounds(global_point)) {
             needs_resize = true;
@@ -242,10 +232,10 @@ private:
           }
 
           if (mask_value > 127) {
-            obstacle_cloud_->push_back(pcl_point);
+            obstacle_cloud->push_back(pcl_point);
           } else {
-            if (i % 10 == 0) {
-              free_cloud_->push_back(pcl_point);
+            if (i % 5 == 0) {
+              free_cloud->push_back(pcl_point);
             }
           }
         }
@@ -257,32 +247,26 @@ private:
     if (needs_resize) {
       std_msgs::String resize_msg;
       resize_msg.data = "resize";
-      modify_pub_.publish(resize_msg);
+      modify_pub.publish(resize_msg);
       return;
     }
 
-    obstacle_octree_.setInputCloud(obstacle_cloud_);
-    obstacle_octree_.addPointsFromInputCloud();
-
-    free_octree_.setInputCloud(free_cloud_);
-    free_octree_.addPointsFromInputCloud();
-
-    sensor_msgs::PointCloud2 debug_cloud;
-    pcl::toROSMsg(*obstacle_cloud_, debug_cloud);
-    debug_cloud.header.frame_id = "robot/odom";
-    debug_cloud.header.stamp = ros::Time::now();
-    debug_cloud_pub_.publish(debug_cloud);
+    /* sensor_msgs::PointCloud2 debug_cloud; */
+    /* pcl::toROSMsg(*obstacle_cloud, debug_cloud); */
+    /* debug_cloud.header.frame_id = "robot/odom"; */
+    /* debug_cloud.header.stamp = ros::Time::now(); */
+    /* debug_cloud_pub.publish(debug_cloud); */
   }
 
   void odomCallback(const nav_msgs::OdometryConstPtr &msg) {
-    current_bot_pose_.global_pose.x = msg->pose.pose.position.x;
-    current_bot_pose_.global_pose.y = msg->pose.pose.position.y;
+    current_pose.global_pose.x = msg->pose.pose.position.x;
+    current_pose.global_pose.y = msg->pose.pose.position.y;
 
     tf2::Quaternion q(
         msg->pose.pose.orientation.x, msg->pose.pose.orientation.y,
         msg->pose.pose.orientation.z, msg->pose.pose.orientation.w);
-    tf2::Matrix3x3(q).getRPY(current_bot_pose_.roll, current_bot_pose_.pitch,
-                             current_bot_pose_.yaw);
+    tf2::Matrix3x3(q).getRPY(current_pose.roll, current_pose.pitch,
+                             current_pose.yaw);
   }
 
   void updateMap(nav_msgs::OccupancyGrid &map) {
@@ -294,151 +278,129 @@ private:
     std::unordered_map<int, float> free_accumulated;
     std::unordered_map<int, float> obstacle_accumulated;
 
-    for (const auto &point : free_cloud_->points) {
+    for (const auto &point : free_cloud->points) {
       GlobalPoint global_point{point.x, point.y};
-      GridCell cell = globalPointToPixelIndex(global_point, grid_);
+      GridCell cell = globalPointToPixelIndex(global_point, grid);
 
-      if (cell.x >= 0 && cell.x < grid_.width && cell.y >= 0 &&
-          cell.y < grid_.height) {
-        int index = cell.y * grid_.width + cell.x;
+      if (cell.x >= 0 && cell.x < grid.width && cell.y >= 0 &&
+          cell.y < grid.height) {
+        int index = cell.y * grid.width + cell.x;
         free_count[index]++;
-        free_accumulated[index] += probToLogOdds(prob_miss_);
+        free_accumulated[index] += probToLogOdds(prob_miss);
       }
     }
 
-    for (const auto &point : obstacle_cloud_->points) {
+    for (const auto &point : obstacle_cloud->points) {
       GlobalPoint global_point{point.x, point.y};
-      GridCell cell = globalPointToPixelIndex(global_point, grid_);
+      GridCell cell = globalPointToPixelIndex(global_point, grid);
 
-      if (cell.x >= 0 && cell.x < grid_.width && cell.y >= 0 &&
-          cell.y < grid_.height) {
-        int index = cell.y * grid_.width + cell.x;
+      if (cell.x >= 0 && cell.x < grid.width && cell.y >= 0 &&
+          cell.y < grid.height) {
+        int index = cell.y * grid.width + cell.x;
         obstacle_count[index]++;
-        obstacle_accumulated[index] += probToLogOdds(prob_hit_);
+        obstacle_accumulated[index] += probToLogOdds(prob_hit);
       }
     }
 
-    for (const auto &[index, count] : free_count) {
+    for (const auto &pair : free_count) {
+      int index = pair.first;
+      int count = pair.second;
+
       float average_update = free_accumulated[index] / count;
-      logOddsMap_[index] += average_update;
-      /* logOddsMap_[index] = */
-      /*     std::max(static_cast<float>(-10), */
-      /*              std::min(logOddsMap_[index], static_cast<float>(10))); */
+      log_odds_map[index] += average_update;
 
-      float prob = logOddsToProb(logOddsMap_[index]);
-      prob = std::max(min_prob_, std::min(max_prob_, prob));
-      logOddsMap_[index] = probToLogOdds(prob);
+      float prob = logOddsToProb(log_odds_map[index]);
+      prob = std::max(min_prob, std::min(max_prob, prob));
+      log_odds_map[index] = probToLogOdds(prob);
 
-      map.data[index] = (prob >= obstacle_thresh_) ? 100 : 0;
+      map.data[index] = (prob >= obstacle_thresh) ? 100 : 0;
     }
 
-    for (const auto &[index, count] : obstacle_count) {
+    for (const auto &pair : obstacle_count) {
+      int index = pair.first;
+      int count = pair.second;
       float average_update = obstacle_accumulated[index] / count;
-      logOddsMap_[index] += average_update;
-      /* logOddsMap_[index] = */
-      /*     std::max(static_cast<float>(-10), */
-      /*              std::min(logOddsMap_[index], static_cast<float>(10))); */
+      log_odds_map[index] += average_update;
 
-      float prob = logOddsToProb(logOddsMap_[index]);
-      prob = std::max(min_prob_, std::min(max_prob_, prob));
-      logOddsMap_[index] = probToLogOdds(prob);
+      float prob = logOddsToProb(log_odds_map[index]);
+      prob = std::max(min_prob, std::min(max_prob, prob));
+      log_odds_map[index] = probToLogOdds(prob);
 
-      map.data[index] = (prob >= obstacle_thresh_) ? 100 : 0;
+      map.data[index] = (prob >= obstacle_thresh) ? 100 : 0;
     }
   }
 
   void loadParameters() {
-    private_nh_.param<float>("prior", prior_, 0.5);
-    private_nh_.param<float>("prob_hit", prob_hit_, 0.6);
-    private_nh_.param<float>("prob_miss", prob_miss_, 0.3);
-    private_nh_.param<float>("min_prob", min_prob_, 0.12);
-    private_nh_.param<float>("max_prob", max_prob_, 0.97);
-    private_nh_.param<float>("obstacle_threshold", obstacle_thresh_, 0.6);
-    private_nh_.param<float>("octree_resolution", octree_resolution_, 0.01);
-    private_nh_.param<double>("resolution", resolution_, 0.01);
-    private_nh_.param<int>("width", width_, 3500);
-    private_nh_.param<int>("height", height_, 3500);
+    private_nh.param<float>("prior", prior, 0.5);
+    private_nh.param<float>("prob_hit", prob_hit, 0.6);
+    private_nh.param<float>("prob_miss", prob_miss, 0.3);
+    private_nh.param<float>("min_prob", min_prob, 0.12);
+    private_nh.param<float>("max_prob", max_prob, 0.97);
+    private_nh.param<float>("obstacle_threshold", obstacle_thresh, 0.6);
+    private_nh.param<double>("resolution", resolution, 0.01);
+    private_nh.param<int>("width", width, 3500);
+    private_nh.param<int>("height", height, 3500);
   }
 
 public:
   PCMapper()
-      : obstacle_octree_(0.01), free_octree_(0.01),
-        obstacle_cloud_(new pcl::PointCloud<pcl::PointXYZ>),
-        free_cloud_(new pcl::PointCloud<pcl::PointXYZ>), mask_received_(false),
+      : obstacle_cloud(new pcl::PointCloud<pcl::PointXYZ>),
+        free_cloud(new pcl::PointCloud<pcl::PointXYZ>), got_mask(false),
         tf_listener(tf_buffer) {
 
     loadParameters();
 
-    cloud_sub_ = nh_.subscribe("pointcloud_topic_sub", 1,
-                               &PCMapper::pointCloudCallback, this);
-    odom_sub_ =
-        nh_.subscribe("odom_topic_sub", 1, &PCMapper::odomCallback, this);
-    mask_sub_ =
-        nh_.subscribe("mask_topic_sub", 1, &PCMapper::maskCallback, this);
+    cloud_sub = nh.subscribe("pointcloud_topic_sub", 1,
+                             &PCMapper::pointCloudCallback, this);
+    odom_sub = nh.subscribe("odom_topic_sub", 1, &PCMapper::odomCallback, this);
+    mask_sub = nh.subscribe("mask_topic_sub", 1, &PCMapper::maskCallback, this);
 
-    modify_sub_ =
-        nh_.subscribe("map_modify_sub", 1, &PCMapper::resizeMapCallback, this);
+    modify_sub =
+        nh.subscribe("map_modify_sub", 1, &PCMapper::resizeMapCallback, this);
 
-    modify_pub_ = nh_.advertise<std_msgs::String>("map_modify_pub", 1);
+    modify_pub = nh.advertise<std_msgs::String>("map_modify_pub", 1);
 
-    goal_sleep_pub_ =
-        nh_.advertise<std_msgs::String>("goal_sleep_pub", 1, true);
+    map_pub = nh.advertise<nav_msgs::OccupancyGrid>("map_pub", 1, true);
+    debug_cloud_pub =
+        nh.advertise<sensor_msgs::PointCloud2>("debug_cloud_pub", 1, true);
 
-    map_pub_ = nh_.advertise<nav_msgs::OccupancyGrid>("map_pub", 1, true);
-    debug_cloud_pub_ =
-        nh_.advertise<sensor_msgs::PointCloud2>("debug_cloud_pub", 1, true);
+    grid = {resolution, -(width / 2.0) * resolution,
+            -(height / 2.0) * resolution, width, height};
 
-    grid_ = {resolution_, -(width_ / 2.0) * resolution_,
-             -(height_ / 2.0) * resolution_, width_, height_};
-
-    logOddsMap_.resize(grid_.width * grid_.height, probToLogOdds(prior_));
+    log_odds_map.resize(grid.width * grid.height, probToLogOdds(prior));
   }
 
   void run() {
     ros::Rate loop_rate(20);
     nav_msgs::OccupancyGrid map;
 
-    map.info.resolution = grid_.resolution;
-    map.info.width = grid_.width;
-    map.info.height = grid_.height;
-    map.info.origin.position.x = grid_.origin_x;
-    map.info.origin.position.y = grid_.origin_y;
+    map.info.resolution = grid.resolution;
+    map.info.width = grid.width;
+    map.info.height = grid.height;
+    map.info.origin.position.x = grid.origin_x;
+    map.info.origin.position.y = grid.origin_y;
     map.info.origin.position.z = 0.0;
     map.info.origin.orientation.w = 1.0;
-    map.data.resize(grid_.width * grid_.height, -1);
+    map.data.resize(grid.width * grid.height, -1);
+
+    map.header.stamp = ros::Time::now();
+    map.header.frame_id = "robot/odom";
 
     while (ros::ok()) {
       try {
         if (tf_buffer.canTransform("robot/odom", "robot/base_link",
                                    ros::Time(0), ros::Duration(1.0))) {
-
-          map.header.stamp = ros::Time::now();
-          map.header.frame_id = "robot/odom";
-
-          map.info.width = grid_.width;
-          map.info.height = grid_.height;
-          map.info.origin.position.x = grid_.origin_x;
-          map.info.origin.position.y = grid_.origin_y;
-
           if (map_resizing) {
-            obstacle_cloud_->clear();
-            free_cloud_->clear();
-            obstacle_octree_.deleteTree();
-            free_octree_.deleteTree();
+            map.info.origin.position.x = grid.origin_x;
+            map.info.origin.position.y = grid.origin_y;
             map.data.clear();
+            map.data.resize(grid.width * grid.height, -1);
+
             map_resizing = false;
           }
 
-          map.data.resize(grid_.width * grid_.height, -1);
-
           updateMap(map);
-          map_pub_.publish(map);
-
-          obstacle_cloud_->clear();
-          free_cloud_->clear();
-          obstacle_octree_.deleteTree();
-          free_octree_.deleteTree();
-
+          map_pub.publish(map);
         } else {
           ROS_WARN_THROTTLE(1.0, "Transform between 'robot/odom' and "
                                  "'robot/base_link' is not available yet.");

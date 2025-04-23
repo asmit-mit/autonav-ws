@@ -506,6 +506,7 @@ public:
 
     MapPose nearest_lane = Utils::findClosestMiddleLane(
         current_pose.map_pose, current_map, explore_distance);
+
     MapPose farthest_lane = Utils::exploreMiddleLane(nearest_lane, current_map);
     WorldPose wp = Utils::getWorldPoseFromMapPose(farthest_lane, current_map);
 
@@ -513,18 +514,20 @@ public:
     wp.y = wp.y + pose_goal_offset * sin(theta);
     MapPose mp = Utils::getMapPoseFromWorldPose(wp, current_map);
 
-    if (wp.x >= current_map.height - 50 || wp.x < 50 ||
-        wp.y >= current_map.width - 50 || wp.x < 50) {
+    if (mp.x >= current_map.height - 50 || mp.x < 50 ||
+        mp.y >= current_map.width - 50 || mp.y < 50) {
       std_msgs::String resize_msg;
       resize_msg.data = "resize";
       modify_pub.publish(resize_msg);
     }
 
-    wp.x = std::max(0, std::min(mp.x, current_map.height));
-    wp.y = std::max(0, std::min(mp.x, current_map.width));
+    mp.x = std::max(0, std::min(mp.x, current_map.height));
+    mp.y = std::max(0, std::min(mp.y, current_map.width));
 
-    createSphereMarker(wp.x, wp.y, 1);
-    publishGoal(wp, theta);
+    WorldPose wp_final = Utils::getWorldPoseFromMapPose(mp, current_map);
+
+    createSphereMarker(wp_final.x, wp_final.y, 1);
+    publishGoal(wp_final, theta);
   }
 };
 

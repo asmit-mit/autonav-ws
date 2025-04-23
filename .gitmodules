@@ -15,7 +15,3 @@
   path = src/nova_localization
   url = git@github.com:Karthikeya819/nova_localization.git
   branch = test1
-[submodule "src/vectornav"]
-  path = src/vectornav
-  url = git@github.com:Karthikeya819/vectornav.git
-  branch = ros1

@@ -6,7 +6,7 @@
   <node name="zed_tf" pkg="transformer" type="zed_tf" output="screen" />
   <!-- <node pkg="tf" type="static_transform_publisher" name="zed_base_link_tf" args="-0.114 0 1.0 0
   0 0 1 robot/base_link base_link 10" output="screen" /> -->
-  <node pkg="tf" type="static_transform_publisher" name="map_odom_tf"
+  <node pkg="tf" type="static_transform_publisher" name="odom_sensor_tf"
     args="0.165 0 0.475 0 0 0 1 robot/base_link os_sensor 10" output="screen" />
 </launch>
 
