@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <!-- Define Arguments -->
+  <arg default="169.254.177.46" name="sensor_hostname"></arg>
+  <arg default="false" name="viz"></arg>
+  <arg default="false" name="rviz"></arg>
+  <arg default="/lidar/points" name="pointcloud_topic"></arg>
+  <arg default="/lidar/imu" name="imu_topic"></arg>
+  <!-- Load common parameters -->
+  <rosparam command="load" file="$(find launcher)/config/nova.yaml"></rosparam>
+  <!-- Ouster ROS Driver -->
+  <include file="$(find ouster_ros)/launch/driver.launch">
+    <arg name="sensor_hostname" value="$(arg sensor_hostname)"></arg>
+    <arg name="viz" value="$(arg viz)"></arg>
+  </include>
+  <!-- Direct Lidar Odometry -->
+  <include file="$(find direct_lidar_odometry)/launch/dlo.launch">
+    <arg name="rviz" value="$(arg rviz)"></arg>
+    <arg name="pointcloud_topic" value="$(arg pointcloud_topic)"></arg>
+    <arg name="imu_topic" value="$(arg imu_topic)"></arg>
+  </include>
+  <!-- ZED Wrapper -->
+  <include file="$(find zed_wrapper)/launch/zed_no_tf.launch"></include>
+</launch>

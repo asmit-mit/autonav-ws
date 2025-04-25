@@ -1,17 +1,14 @@
-<?xml version="1.0"?>
-
+<?xml version="1.0" encoding="UTF-8"?>
 <launch>
-    <node pkg="filterer" type="lane_filterer.py" name="lane_filter_node" output="screen">
-        <param name="higher_h" value="180" />
-        <param name="higher_s" value="44" />
-        <param name="higher_v" value="255" />
-        <param name="lower_h" value="0" />
-        <param name="lower_s" value="0" />
-        <param name="lower_v" value="240" />
-        <param name="target_v" value="140" />
-
-        <remap from="rgb_image_topic_sub" to="/zed_node/rgb/image_rect_color" />
-        <remap from="mask_topic_pub" to="/lane_filter/mask" />
-    </node>
-
+  <node name="lane_filter_node" output="screen" pkg="filterer" type="lane_filterer.py">
+    <param name="higher_h" value="180"></param>
+    <param name="higher_s" value="70"></param>
+    <param name="higher_v" value="255"></param>
+    <param name="lower_h" value="0"></param>
+    <param name="lower_s" value="0"></param>
+    <param name="lower_v" value="200"></param>
+    <param name="target_v" value="140"></param>
+    <remap from="rgb_image_topic_sub" to="/zed_node/rgb/image_rect_color"></remap>
+    <remap from="mask_topic_pub" to="/lane_filter/mask"></remap>
+  </node>
 </launch>

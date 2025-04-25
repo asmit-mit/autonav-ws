@@ -97,12 +97,15 @@ private:
     return 1.0 - (1.0 / (1.0 + exp(log_odds)));
   }
 
-  GridCell globalPointToPixelIndex(const GlobalPoint &global_point,
-                                   const OccupancyGrid &grid) {
+  GridCell globalPointToPixelIndex(
+      const GlobalPoint &global_point, const OccupancyGrid &grid
+  ) {
     int x = static_cast<int>(
-        round((global_point.x - grid.origin_x) / grid.resolution));
+        round((global_point.x - grid.origin_x) / grid.resolution)
+    );
     int y = static_cast<int>(
-        round((global_point.y - grid.origin_y) / grid.resolution));
+        round((global_point.y - grid.origin_y) / grid.resolution)
+    );
     return {x, y};
   }
 
@@ -112,7 +115,7 @@ private:
       cv_bridge::CvImagePtr cv_ptr =
           cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::MONO8);
       current_mask = cv_ptr->image;
-      got_mask = true;
+      got_mask     = true;
     } catch (cv_bridge::Exception &e) {
       ROS_ERROR("cv_bridge exception: %s", e.what());
       return;
@@ -125,37 +128,43 @@ private:
     grid.origin_x = current_pose.global_pose.x - (width * resolution / 2.0);
     grid.origin_y = current_pose.global_pose.y - (height * resolution / 2.0);
 
-    ROS_INFO("Map initialized with origin as x %f and y %f", grid.origin_x,
-             grid.origin_y);
+    ROS_INFO(
+        "Map initialized with origin as x %f and y %f", grid.origin_x,
+        grid.origin_y
+    );
 
     log_odds_map.clear();
     log_odds_map.resize(grid.width * grid.height, probToLogOdds(prior));
 
     nav_msgs::OccupancyGrid new_map;
-    new_map.info.resolution = grid.resolution;
-    new_map.info.width = grid.width;
-    new_map.info.height = grid.height;
-    new_map.info.origin.position.x = grid.origin_x;
-    new_map.info.origin.position.y = grid.origin_y;
-    new_map.info.origin.position.z = 0.0;
+    new_map.info.resolution           = grid.resolution;
+    new_map.info.width                = grid.width;
+    new_map.info.height               = grid.height;
+    new_map.info.origin.position.x    = grid.origin_x;
+    new_map.info.origin.position.y    = grid.origin_y;
+    new_map.info.origin.position.z    = 0.0;
     new_map.info.origin.orientation.w = 1.0;
 
     new_map.data.clear();
     new_map.data.resize(grid.width * grid.height, -1);
 
-    new_map.header.stamp = ros::Time::now();
-    new_map.header.frame_id = "odom";
+    new_map.header.stamp    = ros::Time::now();
+    new_map.header.frame_id = "robot/odom";
 
     updateMap(new_map);
     map_pub.publish(new_map);
-    ROS_INFO("New map created at robot position (%.2f, %.2f)",
-             current_pose.global_pose.x, current_pose.global_pose.y);
+    ROS_INFO(
+        "New map created at robot position (%.2f, %.2f)",
+        current_pose.global_pose.x, current_pose.global_pose.y
+    );
   }
 
   bool isPointOutOfBounds(const GlobalPoint &point) {
     GridCell cell = globalPointToPixelIndex(point, grid);
-    return (cell.x < 0 || cell.x >= grid.width || cell.y < 0 ||
-            cell.y >= grid.height);
+    return (
+        cell.x < 0 || cell.x >= grid.width || cell.y < 0 ||
+        cell.y >= grid.height
+    );
   }
 
   void resizeMapCallback(const std_msgs::String::ConstPtr &msg) {
@@ -174,7 +183,8 @@ private:
 
     if (!got_mask) {
       ROS_WARN_THROTTLE(
-          1.0, "No mask received yet. Skipping point cloud processing.");
+          1.0, "No mask received yet. Skipping point cloud processing."
+      );
       return;
     }
 
@@ -184,28 +194,30 @@ private:
     free_cloud->clear();
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr current_cloud(
-        new pcl::PointCloud<pcl::PointXYZRGB>);
+        new pcl::PointCloud<pcl::PointXYZRGB>
+    );
     pcl::fromROSMsg(*msg, *current_cloud);
 
-    int cloud_width = msg->width;
+    int cloud_width  = msg->width;
     int cloud_height = msg->height;
 
     if (cloud_height != current_mask.rows || cloud_width != current_mask.cols) {
-      ROS_ERROR_THROTTLE(1.0,
-                         "Mask and point cloud dimensions don't match! Mask: "
-                         "%dx%d, Cloud: %dx%d",
-                         current_mask.rows, current_mask.cols, cloud_height,
-                         cloud_width);
+      ROS_ERROR_THROTTLE(
+          1.0,
+          "Mask and point cloud dimensions don't match! Mask: "
+          "%dx%d, Cloud: %dx%d",
+          current_mask.rows, current_mask.cols, cloud_height, cloud_width
+      );
       return;
     }
 
     bool needs_resize = false;
-    int i = 0;
+    int i             = 0;
 
     for (int row = 0; row < cloud_height; ++row) {
       for (int col = 0; col < cloud_width; ++col) {
         i++;
-        int index = row * cloud_width + col;
+        int index         = row * cloud_width + col;
         const auto &point = current_cloud->points[index];
 
         if (!std::isfinite(point.x) || !std::isfinite(point.y) ||
@@ -264,9 +276,11 @@ private:
 
     tf2::Quaternion q(
         msg->pose.pose.orientation.x, msg->pose.pose.orientation.y,
-        msg->pose.pose.orientation.z, msg->pose.pose.orientation.w);
-    tf2::Matrix3x3(q).getRPY(current_pose.roll, current_pose.pitch,
-                             current_pose.yaw);
+        msg->pose.pose.orientation.z, msg->pose.pose.orientation.w
+    );
+    tf2::Matrix3x3(q).getRPY(
+        current_pose.roll, current_pose.pitch, current_pose.yaw
+    );
   }
 
   void updateMap(nav_msgs::OccupancyGrid &map) {
@@ -309,21 +323,21 @@ private:
       float average_update = free_accumulated[index] / count;
       log_odds_map[index] += average_update;
 
-      float prob = logOddsToProb(log_odds_map[index]);
-      prob = std::max(min_prob, std::min(max_prob, prob));
+      float prob          = logOddsToProb(log_odds_map[index]);
+      prob                = std::max(min_prob, std::min(max_prob, prob));
       log_odds_map[index] = probToLogOdds(prob);
 
       map.data[index] = (prob >= obstacle_thresh) ? 100 : 0;
     }
 
     for (const auto &pair : obstacle_count) {
-      int index = pair.first;
-      int count = pair.second;
+      int index            = pair.first;
+      int count            = pair.second;
       float average_update = obstacle_accumulated[index] / count;
       log_odds_map[index] += average_update;
 
-      float prob = logOddsToProb(log_odds_map[index]);
-      prob = std::max(min_prob, std::min(max_prob, prob));
+      float prob          = logOddsToProb(log_odds_map[index]);
+      prob                = std::max(min_prob, std::min(max_prob, prob));
       log_odds_map[index] = probToLogOdds(prob);
 
       map.data[index] = (prob >= obstacle_thresh) ? 100 : 0;
@@ -350,8 +364,9 @@ public:
 
     loadParameters();
 
-    cloud_sub = nh.subscribe("pointcloud_topic_sub", 1,
-                             &PCMapper::pointCloudCallback, this);
+    cloud_sub = nh.subscribe(
+        "pointcloud_topic_sub", 1, &PCMapper::pointCloudCallback, this
+    );
     odom_sub = nh.subscribe("odom_topic_sub", 1, &PCMapper::odomCallback, this);
     mask_sub = nh.subscribe("mask_topic_sub", 1, &PCMapper::maskCallback, this);
 
@@ -364,8 +379,10 @@ public:
     debug_cloud_pub =
         nh.advertise<sensor_msgs::PointCloud2>("debug_cloud_pub", 1, true);
 
-    grid = {resolution, -(width / 2.0) * resolution,
-            -(height / 2.0) * resolution, width, height};
+    grid = {
+        resolution, -(width / 2.0) * resolution, -(height / 2.0) * resolution,
+        width, height
+    };
 
     log_odds_map.resize(grid.width * grid.height, probToLogOdds(prior));
   }
@@ -374,22 +391,24 @@ public:
     ros::Rate loop_rate(20);
     nav_msgs::OccupancyGrid map;
 
-    map.info.resolution = grid.resolution;
-    map.info.width = grid.width;
-    map.info.height = grid.height;
-    map.info.origin.position.x = grid.origin_x;
-    map.info.origin.position.y = grid.origin_y;
-    map.info.origin.position.z = 0.0;
+    map.info.resolution           = grid.resolution;
+    map.info.width                = grid.width;
+    map.info.height               = grid.height;
+    map.info.origin.position.x    = grid.origin_x;
+    map.info.origin.position.y    = grid.origin_y;
+    map.info.origin.position.z    = 0.0;
     map.info.origin.orientation.w = 1.0;
     map.data.resize(grid.width * grid.height, -1);
 
-    map.header.stamp = ros::Time::now();
+    map.header.stamp    = ros::Time::now();
     map.header.frame_id = "robot/odom";
 
     while (ros::ok()) {
       try {
-        if (tf_buffer.canTransform("robot/odom", "robot/base_link",
-                                   ros::Time(0), ros::Duration(1.0))) {
+        if (tf_buffer.canTransform(
+                "robot/odom", "robot/base_link", ros::Time(0),
+                ros::Duration(1.0)
+            )) {
           if (map_resizing) {
             map.info.origin.position.x = grid.origin_x;
             map.info.origin.position.y = grid.origin_y;
@@ -402,8 +421,10 @@ public:
           updateMap(map);
           map_pub.publish(map);
         } else {
-          ROS_WARN_THROTTLE(1.0, "Transform between 'robot/odom' and "
-                                 "'robot/base_link' is not available yet.");
+          ROS_WARN_THROTTLE(
+              1.0, "Transform between 'robot/odom' and "
+                   "'robot/base_link' is not available yet."
+          );
         }
       } catch (const tf2::TransformException &ex) {
         ROS_WARN_THROTTLE(1.0, "Transform lookup failed: %s", ex.what());
@@ -418,7 +439,7 @@ public:
 int main(int argc, char **argv) {
   ros::init(argc, argv, "pc_mapper_node");
 
-  ROS_INFO("PointCloud Mapper Node Started In sim.");
+  ROS_INFO("PointCloud Mapper Node Started.");
 
   PCMapper mapper;
   mapper.run();

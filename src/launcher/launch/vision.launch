@@ -1,10 +1,25 @@
-<?xml version="1.0"?>
-
+<?xml version="1.0" encoding="UTF-8"?>
 <launch>
-
-  <include file="$(find transformer)/launch/transformer.launch"></include>
-  <include file="$(find filterer)/launch/filter.launch"></include>
-  <include file="$(find mapper)/launch/mapping.launch"></include>
-  <include file="$(find mapper)/launch/obstacle_cloud.launch"></include>
-
+  <rosparam command="load" file="$(find launcher)/config/nova.yaml"></rosparam>
+  <!-- Lane Filter Launch -->
+  <node name="lane_filter_node" output="screen" pkg="filterer" type="lane_filterer.py">
+    <remap from="rgb_image_topic_sub" to="/zed_node/rgb/image_rect_color"></remap>
+    <remap from="mask_topic_pub" to="/lane_filter/mask"></remap>
+  </node>
+  <!-- Mapper Launch -->
+  <node name="pc_mapper_node" output="screen" pkg="mapper" type="pc_mapper_node">
+    <remap from="pointcloud_topic_sub" to="/nav/point_cloud"></remap>
+    <remap from="odom_topic_sub" to="/robot/dlo/odom_node/odom"></remap>
+    <remap from="mask_topic_sub" to="/lane_filter/mask"></remap>
+    <remap from="map_modify_sub" to="nav/needs_modify"></remap>
+    <remap from="map_modify_pub" to="nav/needs_modify"></remap>
+    <remap from="goal_sleep_pub" to="nav/goal_sleep"></remap>
+    <remap from="map_pub" to="/nav/global_map"></remap>
+    <remap from="debug_cloud_pub" to="/lane_filter/debug_cloud"></remap>
+  </node>
+  <!-- Obstacle Cloud Publisher -->
+  <node name="obstacle_cloud_node" output="screen" pkg="mapper" type="obstacle_cloud_node">
+    <remap from="pointcloud_sub" to="/lidar/points"></remap>
+    <remap from="obstacle_cloud_pub" to="/nav/obstacle_cloud"></remap>
+  </node>
 </launch>

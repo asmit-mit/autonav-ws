@@ -1,8 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <!-- PCMapper Node -->
   <node pkg="mapper" type="pc_mapper_node" name="pc_mapper_node" output="screen">
-    <!-- Topic Remappings -->
     <remap from="pointcloud_topic_sub" to="/nav/point_cloud" />
     <remap from="odom_topic_sub" to="/robot/dlo/odom_node/odom" />
     <remap from="mask_topic_sub" to="/lane_filter/mask" />
@@ -21,7 +19,7 @@
 
     <param name="~resolution" value="0.04" />
 
-    <param name="~width" value="300" />
-    <param name="~height" value="300" />
+    <param name="~width" value="1500" />
+    <param name="~height" value="1500" />
   </node>
 </launch>

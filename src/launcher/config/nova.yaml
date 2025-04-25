@@ -1,0 +1,35 @@
+lane_filter_node:
+  higher_h: 180
+  higher_s: 44
+  higher_v: 255
+  lower_h: 0
+  lower_s: 0
+  lower_v: 240
+  target_v: 140
+
+pc_mapper_node:
+  prior: 0.5
+  prob_hit: 0.8
+  prob_miss: 0.2
+  min_prob: 0.12
+  max_prob: 0.99
+  obstacle_threshold: 0.55
+  resolution: 0.04
+  width: 2500
+  height: 2500
+
+obstacle_cloud_node:
+  robot_radius: 0.45
+
+goal_gen_node:
+  explore_distance: 100
+  pose_log_offset: 3
+  pose_goal_offset: 10
+  total_gps_goals: 3
+  gps_capture_distance: 5
+# sensors:
+#   sensor_hostname: "169.254.177.46"
+#   viz: false
+#   rviz: false
+#   pointcloud_topic: "/lidar/points"
+#   imu_topic: "/lidar/imu"

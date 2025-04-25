@@ -18,7 +18,9 @@ class GoalPublisher:
         ]
         self.current_goal_index = 0
 
-        self.goal_pub = rospy.Publisher("/nav/gps_goal", PoseStamped, queue_size=10)
+        self.goal_pub = rospy.Publisher(
+            "/nav/gps_goal", PoseStamped, queue_size=10
+        )
         self.odom_sub = rospy.Subscriber(
             "/robot/dlo/odom_node/odom", Odometry, self.odom_callback
         )
@@ -37,16 +39,21 @@ class GoalPublisher:
     def odom_callback(self, odom_msg):
         current_x = odom_msg.pose.pose.position.x
         current_y = odom_msg.pose.pose.position.y
-        current_z = odom_msg.pose.pose.position.z
 
         goal_x, goal_y, goal_z = self.goals[self.current_goal_index]
 
-        distance = math.sqrt((goal_x - current_x) ** 2 + (goal_y - current_y) ** 2)
+        distance = math.sqrt(
+            (goal_x - current_x) ** 2 + (goal_y - current_y) ** 2
+        )
 
         if distance < 1.0:
-            self.current_goal_index = (self.current_goal_index + 1) % len(self.goals)
+            self.current_goal_index = (self.current_goal_index + 1) % len(
+                self.goals
+            )
             rospy.loginfo(
-                "Switching to next goal: {}".format(self.goals[self.current_goal_index])
+                "Switching to next goal: {}".format(
+                    self.goals[self.current_goal_index]
+                )
             )
 
     def run(self):
