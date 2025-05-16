@@ -231,7 +231,7 @@ private:
   int explore_distance{50};
   int pose_log_offset{3};
   int pose_goal_offset{10};
-  int total_gps_goals{4};
+  int total_gps_goals{3};
   int gps_capture_distance{5};
 
   Map current_map;
@@ -475,7 +475,7 @@ public:
     private_nh.param<int>("explore_distance", explore_distance, 50);
     private_nh.param<int>("pose_log_offset", pose_log_offset, 3);
     private_nh.param<int>("pose_goal_offset", pose_goal_offset, 10);
-    private_nh.param<int>("total_gps_goals", total_gps_goals, 4);
+    private_nh.param<int>("total_gps_goals", total_gps_goals, 3);
     private_nh.param<int>("gps_capture_distance", gps_capture_distance, 5);
 
     ROS_INFO("Taking explore distance as %d", explore_distance);

@@ -22,7 +22,7 @@ obstacle_cloud_node:
   robot_radius: 0.45
 
 goal_gen_node:
-  explore_distance: 100
+  explore_distance: 50
   pose_log_offset: 3
   pose_goal_offset: 10
   total_gps_goals: 3
