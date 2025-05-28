@@ -10,20 +10,22 @@ class ImuTransformer {
 public:
   ImuTransformer() : received_imu(false), running_sum(0.0), window_size(30) {
     ros::NodeHandle nh;
-    imu_sub = nh.subscribe("/zed_node/imu/data", 10,
-                           &ImuTransformer::imuCallback, this);
+    imu_sub = nh.subscribe(
+        "/zed_node/imu/data", 10, &ImuTransformer::imuCallback, this
+    );
     tf_broadcaster = new tf2_ros::TransformBroadcaster();
-    monitor_timer = nh.createTimer(ros::Duration(0.5),
-                                   &ImuTransformer::monitorCallback, this);
+    monitor_timer  = nh.createTimer(
+        ros::Duration(0.5), &ImuTransformer::monitorCallback, this
+    );
     last_imu_time = ros::Time::now();
-    ROS_INFO("IMU Transformer initialized. Waiting for data...");
+    ROS_INFO("[zed_tf] IMU Transformer initialized. Waiting for data...");
   }
 
   ~ImuTransformer() { delete tf_broadcaster; }
 
 private:
   void imuCallback(const sensor_msgs::Imu::ConstPtr &msg) {
-    received_imu = true;
+    received_imu  = true;
     last_imu_time = ros::Time::now();
 
     last_imu_msg = *msg;
@@ -33,12 +35,14 @@ private:
 
   void processAndPublishTransform(const sensor_msgs::Imu::ConstPtr &msg) {
     geometry_msgs::TransformStamped transform_stamped;
-    transform_stamped.header.stamp = ros::Time::now();
-    transform_stamped.header.frame_id = "robot/base_link";
-    transform_stamped.child_frame_id = "base_link";
+    transform_stamped.header.stamp    = ros::Time::now();
+    transform_stamped.header.frame_id = "base_link";
+    transform_stamped.child_frame_id  = "zed_camera_link";
 
-    tf2::Quaternion imu_orientation(msg->orientation.x, msg->orientation.y,
-                                    msg->orientation.z, msg->orientation.w);
+    tf2::Quaternion imu_orientation(
+        msg->orientation.x, msg->orientation.y, msg->orientation.z,
+        msg->orientation.w
+    );
     double roll, pitch, yaw;
     tf2::Matrix3x3(imu_orientation).getRPY(roll, pitch, yaw);
 
@@ -70,7 +74,9 @@ private:
     if (received_imu) {
       sensor_msgs::Imu::ConstPtr msg_ptr(new sensor_msgs::Imu(last_imu_msg));
 
-      ROS_INFO_THROTTLE(5.0, "Using last known IMU data due to timeout");
+      ROS_INFO_THROTTLE(
+          5.0, "[zed_tf] Using last known IMU data due to timeout"
+      );
 
       processAndPublishTransform(msg_ptr);
     }
@@ -81,21 +87,26 @@ private:
 
     if (!received_imu) {
       ROS_WARN_THROTTLE(
-          5.0, "No IMU data has been received yet from /zed_node/imu/data");
+          5.0,
+          "[zed_tf] No IMU data has been received yet from /zed_node/imu/data"
+      );
     } else {
       double time_since_last_imu = (current_time - last_imu_time).toSec();
       if (time_since_last_imu > 1.0) {
-        ROS_WARN_THROTTLE(5.0, "No IMU data received for %.1f seconds",
-                          time_since_last_imu);
+        ROS_WARN_THROTTLE(
+            5.0, "[zed_tf] No IMU data received for %.1f seconds",
+            time_since_last_imu
+        );
 
         publishLastImu();
       }
     }
 
     if (received_imu && pitch_window.size() < window_size) {
-      ROS_WARN_THROTTLE(5.0,
-                        "Pitch averaging window not yet full (%zu/%zu samples)",
-                        pitch_window.size(), window_size);
+      ROS_WARN_THROTTLE(
+          5.0, "[zed_tf] Pitch averaging window not yet full (%zu/%zu samples)",
+          pitch_window.size(), window_size
+      );
     }
   }
 

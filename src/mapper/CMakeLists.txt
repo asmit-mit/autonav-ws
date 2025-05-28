@@ -14,18 +14,14 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS
-  cv_bridge
-  pcl_ros
-  roscpp
-  rospy
-  tf2
-  tf2_ros
+find_package(
+    catkin
+    REQUIRED
+    COMPONENTS cv_bridge pcl_ros roscpp rospy tf2 tf2_ros
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -126,8 +122,8 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
-  ${catkin_INCLUDE_DIRS}
+    # include
+    ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -215,9 +211,8 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-
-add_executable(pc_mapper_node src/pc_mapper.cpp)
-target_link_libraries(pc_mapper_node ${catkin_LIBRARIES})
+add_executable(mapper src/mapper.cpp)
+target_link_libraries(mapper ${catkin_LIBRARIES})
 
 add_executable(obstacle_cloud_node src/obstacle_cloud.cpp)
 target_link_libraries(obstacle_cloud_node ${catkin_LIBRARIES})

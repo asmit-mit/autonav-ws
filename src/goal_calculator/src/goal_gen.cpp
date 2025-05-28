@@ -152,7 +152,7 @@ public:
 
       last_cell = current;
 
-      for (int i = 0; i < 4; i++) {
+      for (int i = 0; i < 8; i++) {
         int nx = current.x + dx[i];
         int ny = current.y + dy[i];
         MapPose neighbor(nx, ny);
@@ -162,6 +162,22 @@ public:
             visited.find(hash) == visited.end() && map.grid[ny][nx] == 100) {
           visited.insert(hash);
           q.push(neighbor);
+        }
+      }
+
+      const int search_radius = 10;
+      for (int dy = -search_radius; dy <= search_radius; ++dy) {
+        for (int dx = -search_radius; dx <= search_radius; ++dx) {
+          int nx = current.x + dx;
+          int ny = current.y + dy;
+          MapPose neighbor(nx, ny);
+          int hash = hashFunc(neighbor);
+
+          if (nx >= 0 && nx < map.width && ny >= 0 && ny < map.height &&
+              visited.find(hash) == visited.end() && map.grid[ny][nx] == 100) {
+            visited.insert(hash);
+            q.push(neighbor);
+          }
         }
       }
     }
@@ -225,18 +241,21 @@ private:
   ros::Publisher goal_pub;
   ros::Publisher modify_pub;
 
-  bool have_map  = false;
-  bool have_odom = false;
+  bool have_map     = false;
+  bool have_odom    = false;
+  bool finished_gps = false;
 
   int explore_distance{50};
   int pose_log_offset{3};
   int pose_goal_offset{10};
   int total_gps_goals{3};
   int gps_capture_distance{5};
+  std::string mode = "automated";
 
   Map current_map;
   BotPose prev_pose;
   BotPose current_pose;
+  BotPose first_pose;
 
   bool paused = false;
 
@@ -247,7 +266,7 @@ private:
   void createSphereMarker(double x, double y, int id) {
     visualization_msgs::Marker marker;
 
-    marker.header.frame_id = "robot/odom";
+    marker.header.frame_id = "odom";
     marker.header.stamp    = ros::Time::now();
 
     marker.ns = "sphere_markers";
@@ -282,7 +301,7 @@ private:
   createArrowMarker(double x1, double y1, double x2, double y2, int id = 0) {
     visualization_msgs::Marker marker;
 
-    marker.header.frame_id = "robot/odom";
+    marker.header.frame_id = "odom";
     marker.header.stamp    = ros::Time::now();
 
     marker.ns = "arrow_markers";
@@ -318,7 +337,7 @@ private:
     nav_msgs::OccupancyGrid grid_msg;
 
     grid_msg.header.stamp    = ros::Time::now();
-    grid_msg.header.frame_id = "robot/odom";
+    grid_msg.header.frame_id = "odom";
 
     grid_msg.info.resolution = map.resolution;
     grid_msg.info.width      = map.width;
@@ -348,7 +367,7 @@ private:
   void publishGoal(const WorldPose &target, double yaw) {
     geometry_msgs::PoseStamped goal;
 
-    goal.header.frame_id = "robot/odom";
+    goal.header.frame_id = "odom";
     goal.header.stamp    = ros::Time::now();
 
     goal.pose.position.x = target.x;
@@ -414,29 +433,44 @@ private:
       prev_pose = current_pose;
     }
 
+    if (!have_odom) {
+      first_pose = current_pose;
+    }
+
     have_odom = true;
   }
 
   void gpsCallback(const geometry_msgs::PoseStamped::ConstPtr msg) {
+    if (mode == "lane_follow")
+      return;
+
     WorldPose gps_wp;
     gps_wp.x = msg->pose.position.x;
     gps_wp.y = msg->pose.position.y;
 
     int gps_counter = msg->pose.position.z;
 
+    if (mode == "gps") {
+      publishGoal(gps_wp, current_pose.yaw);
+      if (gps_counter == total_gps_goals + 1) {
+        publishGoal(current_pose.world_pose, current_pose.yaw);
+        ros::shutdown();
+      }
+      return;
+    }
+
     if (gps_counter > 1 && gps_counter <= total_gps_goals ||
         ((Utils::worldDistance(current_pose.world_pose, gps_wp) <
           gps_capture_distance) &&
          gps_counter == 1)) {
-      ROS_INFO("%f %f %d", gps_wp.x, gps_wp.y, gps_counter);
       paused = true;
       createSphereMarker(gps_wp.x, gps_wp.y, 2);
       publishGoal(gps_wp, current_pose.yaw);
     }
 
     if (gps_counter > total_gps_goals) {
-      ROS_INFO("Finished all gps goals");
-      paused = false;
+      finished_gps = true;
+      paused       = false;
     }
   }
 
@@ -477,12 +511,10 @@ public:
     private_nh.param<int>("pose_goal_offset", pose_goal_offset, 10);
     private_nh.param<int>("total_gps_goals", total_gps_goals, 3);
     private_nh.param<int>("gps_capture_distance", gps_capture_distance, 5);
+    private_nh.param<std::string>("mode", mode, "automated");
 
-    ROS_INFO("Taking explore distance as %d", explore_distance);
-    ROS_INFO("Taking pose log offset as %d", pose_log_offset);
-    ROS_INFO("Taking pose goal offset as %d", pose_goal_offset);
-    ROS_INFO("Taking total gps goals as %d", total_gps_goals);
-    ROS_INFO("Taking gps capture distance as %d", gps_capture_distance);
+    ROS_INFO("[goal_gen] Taking total gps goals as %d", total_gps_goals);
+    ROS_INFO("[goal_gen] Taking mode as %s", mode.c_str());
 
     last_map_time  = ros::Time::now();
     last_odom_time = ros::Time::now();
@@ -505,6 +537,19 @@ public:
   void findGoal() {
     if (!(have_map && have_odom)) {
       return;
+    }
+
+    if (mode == "gps") {
+      ROS_INFO("[goal_gen] Gps Mode Active");
+      return;
+    }
+
+    if (finished_gps &&
+        Utils::worldDistance(current_pose.world_pose, first_pose.world_pose) <
+            5) {
+      publishGoal(first_pose.world_pose, first_pose.yaw);
+      ROS_INFO("[goal_gen] Course Completed");
+      ros::shutdown();
     }
 
     double theta;
@@ -534,7 +579,7 @@ public:
     if (mp.x >= current_map.height - 50 || mp.x < 50 ||
         mp.y >= current_map.width - 50 || mp.y < 50) {
       std_msgs::String resize_msg;
-      resize_msg.data = "resize";
+      resize_msg.data = "relocate";
       modify_pub.publish(resize_msg);
     }
 
@@ -543,6 +588,13 @@ public:
 
     if (current_map.grid[mp.y][mp.x] == 100) {
       mp = Utils::findClosestForValue(mp, current_map, explore_distance, 0);
+    }
+
+    if (mode == "lane_follow" &&
+        Utils::worldDistance(wp, current_pose.world_pose) < 7) {
+      ROS_INFO("[mapper] Reached the end of the lane");
+      publishGoal(current_pose.world_pose, current_pose.yaw);
+      ros::shutdown();
     }
 
     WorldPose wp_final = Utils::getWorldPoseFromMapPose(mp, current_map);
@@ -555,7 +607,7 @@ public:
 int main(int argc, char **argv) {
   ros::init(argc, argv, "goal_gen");
 
-  ROS_INFO("Goal Gen Node Started.");
+  ROS_INFO("[goal_gen] Goal Gen Node Started.");
 
   GoalGenner goal_gen;
 

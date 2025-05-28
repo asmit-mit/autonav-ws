@@ -3,7 +3,7 @@
   <rosparam command="load" file="$(find launcher)/config/nova.yaml"></rosparam>
   <node name="goal_gen_node" output="screen" pkg="goal_calculator" type="goal_gen">
     <remap from="map" to="nav/global_map"></remap>
-    <remap from="odom" to="/robot/dlo/odom_node/odom"></remap>
+    <remap from="odom" to="odom"></remap>
     <remap from="gps_goal" to="/nav/gps_goal"></remap>
     <remap from="modify_pub" to="nav/needs_modify"></remap>
   </node>

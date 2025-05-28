@@ -12,9 +12,9 @@ ros::Publisher pub_imu;
 ros::Time last_pointcloud_time;
 ros::Time last_laserscan_time;
 ros::Time last_imu_time;
-bool received_pointcloud = false;
-bool received_laserscan = false;
-bool received_imu = false;
+bool received_pointcloud      = false;
+bool received_laserscan       = false;
+bool received_imu             = false;
 const double TIMEOUT_DURATION = 1.0;
 
 const int IMU_WINDOW_SIZE = 30;
@@ -40,8 +40,8 @@ Vector3Sum linear_acc_sum;
 Vector3Sum angular_vel_sum;
 QuaternionSum orientation_sum;
 
-geometry_msgs::Quaternion getAveragedQuaternion(const QuaternionSum &sum,
-                                                int size) {
+geometry_msgs::Quaternion
+getAveragedQuaternion(const QuaternionSum &sum, int size) {
   geometry_msgs::Quaternion avg;
   avg.x = sum.x / size;
   avg.y = sum.y / size;
@@ -67,23 +67,23 @@ geometry_msgs::Vector3 getAveragedVector3(const Vector3Sum &sum, int size) {
 }
 
 void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg) {
-  received_pointcloud = true;
-  last_pointcloud_time = ros::Time::now();
+  received_pointcloud              = true;
+  last_pointcloud_time             = ros::Time::now();
   sensor_msgs::PointCloud2 new_msg = *msg;
-  new_msg.header.stamp = ros::Time::now();
+  new_msg.header.stamp             = ros::Time::now();
   pub_pointcloud.publish(new_msg);
 }
 
 void laserScanCallback(const sensor_msgs::LaserScan::ConstPtr &msg) {
-  received_laserscan = true;
-  last_laserscan_time = ros::Time::now();
+  received_laserscan             = true;
+  last_laserscan_time            = ros::Time::now();
   sensor_msgs::LaserScan new_msg = *msg;
-  new_msg.header.stamp = ros::Time::now();
+  new_msg.header.stamp           = ros::Time::now();
   pub_laserscan.publish(new_msg);
 }
 
 void imuCallback(const sensor_msgs::Imu::ConstPtr &msg) {
-  received_imu = true;
+  received_imu  = true;
   last_imu_time = ros::Time::now();
 
   linear_acc_sum.x += msg->linear_acceleration.x;
@@ -126,7 +126,7 @@ void imuCallback(const sensor_msgs::Imu::ConstPtr &msg) {
   }
 
   sensor_msgs::Imu new_msg = *msg;
-  new_msg.header.stamp = ros::Time::now();
+  new_msg.header.stamp     = ros::Time::now();
 
   if (linear_acc_window.size() >= 3) {
     int window_size = linear_acc_window.size();
@@ -143,25 +143,35 @@ void checkDataReception(const ros::TimerEvent &) {
   ros::Time current_time = ros::Time::now();
   if (!received_pointcloud) {
     ROS_WARN_THROTTLE(
-        5.0,
-        "No PointCloud data has been received yet on topic /ouster/points");
+        5.0, "[lidar_tf] No PointCloud data has been received yet on topic "
+             "/ouster/points"
+    );
   } else if ((current_time - last_pointcloud_time).toSec() > TIMEOUT_DURATION) {
-    ROS_WARN_THROTTLE(5.0, "No PointCloud data received for %.1f seconds",
-                      (current_time - last_pointcloud_time).toSec());
+    ROS_WARN_THROTTLE(
+        5.0, "[lidar_tf] No PointCloud data received for %.1f seconds",
+        (current_time - last_pointcloud_time).toSec()
+    );
   }
   if (!received_laserscan) {
     ROS_WARN_THROTTLE(
-        5.0, "No LaserScan data has been received yet on topic /ouster/scan");
+        5.0, "[lidar_tf] No LaserScan data has been received yet on topic "
+             "/ouster/scan"
+    );
   } else if ((current_time - last_laserscan_time).toSec() > TIMEOUT_DURATION) {
-    ROS_WARN_THROTTLE(5.0, "No LaserScan data received for %.1f seconds",
-                      (current_time - last_laserscan_time).toSec());
+    ROS_WARN_THROTTLE(
+        5.0, "[lidar_tf] No LaserScan data received for %.1f seconds",
+        (current_time - last_laserscan_time).toSec()
+    );
   }
   if (!received_imu) {
-    ROS_WARN_THROTTLE(5.0,
-                      "No IMU data has been received yet on topic /ouster/imu");
+    ROS_WARN_THROTTLE(
+        5.0, "[lidar_tf] No IMU data has been received yet on topic /ouster/imu"
+    );
   } else if ((current_time - last_imu_time).toSec() > TIMEOUT_DURATION) {
-    ROS_WARN_THROTTLE(5.0, "No IMU data received for %.1f seconds",
-                      (current_time - last_imu_time).toSec());
+    ROS_WARN_THROTTLE(
+        5.0, "[lidar_tf] No IMU data received for %.1f seconds",
+        (current_time - last_imu_time).toSec()
+    );
   }
 }
 
@@ -170,8 +180,8 @@ int main(int argc, char **argv) {
   ros::NodeHandle nh;
 
   pub_pointcloud = nh.advertise<sensor_msgs::PointCloud2>("/lidar/points", 10);
-  pub_laserscan = nh.advertise<sensor_msgs::LaserScan>("/lidar/scan", 10);
-  pub_imu = nh.advertise<sensor_msgs::Imu>("/lidar/imu", 10);
+  pub_laserscan  = nh.advertise<sensor_msgs::LaserScan>("/lidar/scan", 10);
+  pub_imu        = nh.advertise<sensor_msgs::Imu>("/lidar/imu", 10);
 
   ros::Subscriber sub_pointcloud =
       nh.subscribe("/ouster/points", 10, pointCloudCallback);
@@ -181,8 +191,10 @@ int main(int argc, char **argv) {
 
   ros::Timer timer = nh.createTimer(ros::Duration(0.5), checkDataReception);
 
-  ROS_INFO("Lidar TF node started with IMU smoothing. Window size: %d",
-           IMU_WINDOW_SIZE);
+  ROS_INFO(
+      "[lidar_tf] Lidar TF node started with IMU smoothing. Window size: %d",
+      IMU_WINDOW_SIZE
+  );
   ros::spin();
   return 0;
 }

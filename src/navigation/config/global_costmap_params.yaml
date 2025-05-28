@@ -1,6 +1,6 @@
 global_costmap:
-  global_frame: robot/odom
-  robot_base_frame: robot/base_link
+  global_frame: odom
+  robot_base_frame: base_link
   update_frequency: 5.0
   publish_frequency: 2.0
   static_map: true

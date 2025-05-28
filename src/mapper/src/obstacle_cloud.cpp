@@ -11,8 +11,8 @@ public:
     ros::NodeHandle nh;
     ros::NodeHandle private_nh("~");
     private_nh.getParam("robot_radius", robot_radius_);
-    sub_ = nh.subscribe("pointcloud_sub", 1, &PointCloudFilter::filterCloud,
-                        this);
+    sub_ =
+        nh.subscribe("pointcloud_sub", 1, &PointCloudFilter::filterCloud, this);
     pub_ = nh.advertise<sensor_msgs::PointCloud2>("obstacle_cloud_pub", 1);
   }
 
@@ -22,9 +22,11 @@ public:
 
     pcl::PointCloud<pcl::PointXYZ> filtered_cloud;
     for (size_t i = 0; i < cloud.size(); i++) {
-      float distance = std::sqrt(cloud.points[i].x * cloud.points[i].x +
-                                 cloud.points[i].y * cloud.points[i].y +
-                                 cloud.points[i].z * cloud.points[i].z);
+      float distance = std::sqrt(
+          cloud.points[i].x * cloud.points[i].x +
+          cloud.points[i].y * cloud.points[i].y +
+          cloud.points[i].z * cloud.points[i].z
+      );
 
       if (distance > robot_radius_) {
         filtered_cloud.push_back(cloud[i]);

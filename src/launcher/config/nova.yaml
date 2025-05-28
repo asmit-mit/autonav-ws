@@ -7,7 +7,7 @@ lane_filter_node:
   lower_v: 240
   target_v: 140
 
-pc_mapper_node:
+mapper:
   prior: 0.5
   prob_hit: 0.8
   prob_miss: 0.2

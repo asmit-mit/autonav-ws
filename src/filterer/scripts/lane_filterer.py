@@ -42,7 +42,7 @@ class LaneFilterer:
 
             cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
         except CvBridgeError as e:
-            rospy.logerr("Could not convert image: %s", e)
+            rospy.logerr("[filterer] Could not convert image: %s", e)
             return
 
         brighter_bgr_image = self.make_image_brighter(cv_image, self.target_v)
@@ -77,10 +77,10 @@ class LaneFilterer:
             mask_msg = self.bridge.cv2_to_imgmsg(mask, encoding="mono8")
             self.image_pub.publish(mask_msg)
         except CvBridgeError as e:
-            rospy.logerr("Could not convert mask image: %s", e)
+            rospy.logerr("[filterer] Could not convert mask image: %s", e)
 
     def run(self):
-        rospy.loginfo("Lane Filterer Node Started")
+        rospy.loginfo("[filterer] Lane Filterer Node Started")
         rospy.spin()
 
 
