@@ -1,10 +1,10 @@
 lane_filter_node:
   higher_h: 180
-  higher_s: 80
+  higher_s: 10
   higher_v: 255
   lower_h: 0
   lower_s: 0
-  lower_v: 251
+  lower_v: 225
   target_v: 140
 
 mapper:
@@ -23,7 +23,7 @@ obstacle_cloud_node:
   robot_radius: 0.45
 
 goal_gen_node:
-  explore_distance: 50
+  explore_distance: 300
   pose_log_offset: 3
   pose_goal_offset: 10
   total_gps_goals: 3
