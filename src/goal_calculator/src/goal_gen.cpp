@@ -9,221 +9,7 @@
 #include "tf2/LinearMath/Quaternion.h"
 #include "visualization_msgs/Marker.h"
 
-#include <cmath>
-#include <queue>
-#include <thread>
-#include <unordered_set>
-#include <vector>
-
-struct WorldPose {
-  double x;
-  double y;
-
-  WorldPose(double x_val = 0.0, double y_val = 0.0) : x(x_val), y(y_val) {}
-};
-
-struct MapPose {
-  int x;
-  int y;
-
-  MapPose(int x_val = 0, int y_val = 0) : x(x_val), y(y_val) {}
-};
-
-struct Map {
-  int width, height;
-  double resolution;
-  WorldPose origin;
-  std::vector<std::vector<int>> grid;
-};
-
-struct BotPose {
-  WorldPose world_pose;
-  MapPose map_pose;
-  double roll, pitch, yaw;
-};
-
-class Utils {
-public:
-  Utils() {}
-
-  static double getAngleRadians(const WorldPose &a, const WorldPose &b) {
-    double dx = b.x - a.x;
-    double dy = b.y - a.y;
-    return std::atan2(dy, dx);
-  }
-
-  static double mapDistance(const MapPose &a, const MapPose &b) {
-    double dx = a.x - b.x;
-    double dy = a.y - b.y;
-    return std::sqrt(dx * dx + dy * dy);
-  }
-
-  static double worldDistance(const WorldPose &a, const WorldPose &b) {
-    double dx = a.x - b.x;
-    double dy = a.y - b.y;
-    return std::sqrt(dx * dx + dy * dy);
-  }
-
-  static MapPose
-  getMapPoseFromWorldPose(const WorldPose &pose, const Map &map) {
-    MapPose map_pose;
-    map_pose.x = static_cast<int>((pose.x - map.origin.x) / map.resolution);
-    map_pose.y = static_cast<int>((pose.y - map.origin.y) / map.resolution);
-    return map_pose;
-  }
-
-  static WorldPose
-  getWorldPoseFromMapPose(const MapPose &pose, const Map &map) {
-    WorldPose world_pose;
-    world_pose.x = map.origin.x + (pose.x * map.resolution);
-    world_pose.y = map.origin.y + (pose.y * map.resolution);
-    return world_pose;
-  }
-
-  static MapPose findClosestForValue(
-      const MapPose &pose, const Map &map, int radius, int value
-  ) {
-    const int dx[] = {0, 1, 0, -1, 1, -1, 1, -1};
-    const int dy[] = {-1, 0, 1, 0, -1, 1, 1, -1};
-
-    std::queue<std::pair<MapPose, int>> q;
-
-    auto hashFunc = [&map](const MapPose &p) { return p.y * map.width + p.x; };
-
-    std::unordered_set<int> visited;
-
-    if (pose.x < 0 || pose.x >= map.width || pose.y < 0 ||
-        pose.y >= map.height) {
-      return MapPose(-1, -1);
-    }
-
-    q.push({pose, 0});
-    visited.insert(hashFunc(pose));
-
-    while (!q.empty()) {
-      auto pair = q.front();
-      q.pop();
-
-      MapPose current = pair.first;
-      int distance    = pair.second;
-
-      if (map.grid[current.y][current.x] == value) {
-        return current;
-      }
-
-      if (distance >= radius) {
-        continue;
-      }
-
-      for (int i = 0; i < 4; i++) {
-        int nx = current.x + dx[i];
-        int ny = current.y + dy[i];
-        MapPose neighbor(nx, ny);
-        int hash = hashFunc(neighbor);
-
-        if (nx >= 0 && nx < map.width && ny >= 0 && ny < map.height &&
-            visited.find(hash) == visited.end()) {
-          visited.insert(hash);
-          q.push({neighbor, distance + 1});
-        }
-      }
-    }
-
-    return MapPose(-1, -1);
-  }
-
-  static MapPose exploreMiddleLane(const MapPose &start, const Map &map) {
-    const int dx[] = {0, 1, 0, -1, 1, -1, 1, -1};
-    const int dy[] = {-1, 0, 1, 0, -1, 1, 1, -1};
-
-    std::queue<MapPose> q;
-    std::unordered_set<int> visited;
-
-    auto hashFunc = [&map](const MapPose &p) { return p.y * map.width + p.x; };
-
-    q.push(start);
-    visited.insert(hashFunc(start));
-
-    MapPose last_cell = start;
-
-    while (!q.empty()) {
-      MapPose current = q.front();
-      q.pop();
-
-      last_cell = current;
-
-      for (int i = 0; i < 8; i++) {
-        int nx = current.x + dx[i];
-        int ny = current.y + dy[i];
-        MapPose neighbor(nx, ny);
-        int hash = hashFunc(neighbor);
-
-        if (nx >= 0 && nx < map.width && ny >= 0 && ny < map.height &&
-            visited.find(hash) == visited.end() && map.grid[ny][nx] == 100) {
-          visited.insert(hash);
-          q.push(neighbor);
-        }
-      }
-
-      const int search_radius = 10;
-      for (int dy = -search_radius; dy <= search_radius; ++dy) {
-        for (int dx = -search_radius; dx <= search_radius; ++dx) {
-          int nx = current.x + dx;
-          int ny = current.y + dy;
-          MapPose neighbor(nx, ny);
-          int hash = hashFunc(neighbor);
-
-          if (nx >= 0 && nx < map.width && ny >= 0 && ny < map.height &&
-              visited.find(hash) == visited.end() && map.grid[ny][nx] == 100) {
-            visited.insert(hash);
-            q.push(neighbor);
-          }
-        }
-      }
-    }
-
-    return last_cell;
-  }
-
-  static void removeMapBehindBot(
-      Map &map, const WorldPose &bot_pose, double angle, int height_to_remove,
-      int width_to_remove
-  ) {
-    while (angle > M_PI)
-      angle -= 2 * M_PI;
-    while (angle < -M_PI)
-      angle += 2 * M_PI;
-
-    auto process_rows = [&](int start_y, int end_y) {
-      for (int y = start_y; y < end_y; y++) {
-        for (int x = 0; x < map.width; x++) {
-          MapPose map_pose(x, y);
-          WorldPose world_pose = Utils::getWorldPoseFromMapPose(map_pose, map);
-
-          double angle_to_pixel = Utils::getAngleRadians(bot_pose, world_pose);
-
-          double angle_diff = angle_to_pixel - angle;
-
-          while (angle_diff > M_PI)
-            angle_diff -= 2 * M_PI;
-          while (angle_diff < -M_PI)
-            angle_diff += 2 * M_PI;
-
-          double dx = world_pose.x - bot_pose.x;
-          double dy = world_pose.y - bot_pose.y;
-
-          if (std::abs(angle_diff) > M_PI / 2 &&
-              std::abs(dx) <= width_to_remove &&
-              std::abs(dy) <= height_to_remove) {
-            map.grid[y][x] = -1;
-          }
-        }
-      }
-    };
-
-    process_rows(0, map.height);
-  }
-};
+#include "utils.cpp"
 
 class GoalGenner {
 private:
@@ -297,73 +83,6 @@ private:
     marker_pub.publish(marker);
   }
 
-  void
-  createArrowMarker(double x1, double y1, double x2, double y2, int id = 0) {
-    visualization_msgs::Marker marker;
-
-    marker.header.frame_id = "odom";
-    marker.header.stamp    = ros::Time::now();
-
-    marker.ns = "arrow_markers";
-    marker.id = id;
-
-    marker.type   = visualization_msgs::Marker::ARROW;
-    marker.action = visualization_msgs::Marker::ADD;
-
-    geometry_msgs::Point start, end;
-    start.x = x1;
-    start.y = y1;
-    start.z = 0;
-    end.x   = x2;
-    end.y   = y2;
-    end.z   = 0;
-
-    marker.points.push_back(start);
-    marker.points.push_back(end);
-
-    marker.scale.x = 0.1;
-    marker.scale.y = 0.2;
-    marker.scale.z = 0.1;
-
-    marker.color.r = 1.0f;
-    marker.color.g = 0.0f;
-    marker.color.b = 0.0f;
-    marker.color.a = 1.0;
-
-    marker_pub.publish(marker);
-  }
-
-  void publishMap(const Map &map) {
-    nav_msgs::OccupancyGrid grid_msg;
-
-    grid_msg.header.stamp    = ros::Time::now();
-    grid_msg.header.frame_id = "odom";
-
-    grid_msg.info.resolution = map.resolution;
-    grid_msg.info.width      = map.width;
-    grid_msg.info.height     = map.height;
-
-    grid_msg.info.origin.position.x = map.origin.x;
-    grid_msg.info.origin.position.y = map.origin.y;
-    grid_msg.info.origin.position.z = 0.0;
-
-    grid_msg.info.origin.orientation.x = 0.0;
-    grid_msg.info.origin.orientation.y = 0.0;
-    grid_msg.info.origin.orientation.z = 0.0;
-    grid_msg.info.origin.orientation.w = 1.0;
-
-    grid_msg.data.resize(map.width * map.height);
-
-    for (int y = 0; y < map.height; y++) {
-      for (int x = 0; x < map.width; x++) {
-        int index            = y * map.width + x;
-        grid_msg.data[index] = map.grid[y][x];
-      }
-    }
-
-    map_pub.publish(grid_msg);
-  }
-
   void publishGoal(const WorldPose &target, double yaw) {
     geometry_msgs::PoseStamped goal;
 
@@ -393,16 +112,7 @@ private:
     current_map.resolution = msg->info.resolution;
     current_map.origin.x   = msg->info.origin.position.x;
     current_map.origin.y   = msg->info.origin.position.y;
-    current_map.grid.resize(
-        current_map.height, std::vector<int>(current_map.width, -1)
-    );
-
-    for (int y = 0; y < current_map.height; y++) {
-      for (int x = 0; x < current_map.width; x++) {
-        int index              = y * current_map.width + x;
-        current_map.grid[y][x] = msg->data[index];
-      }
-    }
+    current_map.grid       = std::move(msg->data);
 
     have_map = true;
   }
@@ -529,7 +239,6 @@ public:
     marker_pub = nh.advertise<visualization_msgs::Marker>("goal_marker", 10);
     modify_pub = nh.advertise<std_msgs::String>("modify_pub", 10);
 
-    /* map_pub = nh.advertise<nav_msgs::OccupancyGrid>("/modified_map", 10); */
     goal_pub =
         nh.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
   }
@@ -586,13 +295,13 @@ public:
     mp.x = std::max(0, std::min(mp.x, current_map.height));
     mp.y = std::max(0, std::min(mp.y, current_map.width));
 
-    if (current_map.grid[mp.y][mp.x] == 100) {
+    if (current_map.getValue(mp.x, mp.y) == 100) {
       mp = Utils::findClosestForValue(mp, current_map, explore_distance, 0);
     }
 
     if (mode == "lane_follow" &&
         Utils::worldDistance(wp, current_pose.world_pose) < 7) {
-      ROS_INFO("[mapper] Reached the end of the lane");
+      ROS_INFO("[goal_gen] Reached the end of the lane");
       publishGoal(current_pose.world_pose, current_pose.yaw);
       ros::shutdown();
     }

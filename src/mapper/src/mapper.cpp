@@ -33,6 +33,9 @@ private:
   ros::Subscriber mask_sub;
   ros::Subscriber modify_sub;
 
+  tf2_ros::Buffer tf_buffer;
+  tf2_ros::TransformListener tf_listener;
+
   float prior;
   float prob_hit;
   float prob_miss;
@@ -42,10 +45,12 @@ private:
   double resolution;
   int width;
   int height;
+  int preserve_meters;
 
   bool got_mask;
   bool got_odom;
   bool got_cloud;
+  bool got_transform;
 
   bool is_map_resizing = false;
 
@@ -62,9 +67,23 @@ private:
 
   float probToLogOdds(float prob) { return log(prob / (1.0 - prob)); }
 
-  float logOddsToProb(float log_odds) {
-    return 1.0 - (1.0 / (1.0 + exp(log_odds)));
+  float logOddsToProb(float log_odds) { return 1.0 / (1.0 + exp(-log_odds)); }
+
+  bool checkTransformAvailable() {
+    try {
+      geometry_msgs::TransformStamped transform = tf_buffer.lookupTransform(
+          "odom", "base_link", ros::Time(0), ros::Duration(0.1)
+      );
+      got_transform = true;
+      return true;
+    } catch (tf2::TransformException &ex) {
+      ROS_WARN_THROTTLE(5.0, "[mapper] Transform not available: %s", ex.what());
+      got_transform = false;
+      return false;
+    }
   }
+
+  bool allDataReady() { return got_mask && got_odom; }
 
   void loadParameters() {
     private_nh.param<float>("prior", prior, 0.5);
@@ -76,6 +95,7 @@ private:
     private_nh.param<double>("resolution", resolution, 0.01);
     private_nh.param<int>("width", width, 3500);
     private_nh.param<int>("height", height, 3500);
+    private_nh.param<int>("preserve_meters", preserve_meters, 10);
   }
 
   void publishMap(Map &map) {
@@ -99,6 +119,15 @@ private:
   }
 
   void relocate(Map &map) {
+    int preserve_cells = static_cast<int>(preserve_meters / map.resolution);
+
+    std::vector<int8_t> old_grid     = map.grid;
+    std::vector<double> old_log_odds = log_odds_map;
+    Map old_map                      = map;
+
+    MapPose robot_old_pos =
+        Utils::getMapPoseFromWorldPose(current_pose.world_pose, old_map);
+
     log_odds_map.clear();
     log_odds_map.resize(map.height * map.width, probToLogOdds(prior));
 
@@ -109,10 +138,33 @@ private:
     map.grid.clear();
     map.grid.resize(map.height * map.width, -1);
 
-    ROS_INFO("[mapper] Relocated the map to %f %f", map.origin.x, map.origin.y);
+    MapPose robot_new_pos =
+        Utils::getMapPoseFromWorldPose(current_pose.world_pose, map);
+
+    for (int dy = -preserve_cells / 2; dy <= preserve_cells / 2; dy++) {
+      for (int dx = -preserve_cells / 2; dx <= preserve_cells / 2; dx++) {
+        int old_x = robot_old_pos.x + dx;
+        int old_y = robot_old_pos.y + dy;
+
+        int new_x = robot_new_pos.x + dx;
+        int new_y = robot_new_pos.y + dy;
+
+        if (old_map.isValid(old_x, old_y) && map.isValid(new_x, new_y)) {
+          int old_index = old_map.getIndex(old_x, old_y);
+          int new_index = map.getIndex(new_x, new_y);
+
+          map.grid[new_index]     = old_grid[old_index];
+          log_odds_map[new_index] = old_log_odds[old_index];
+        }
+      }
+    }
+
+    ROS_INFO(
+        "[mapper] Relocated map to %f %f, preserved %dx%d area around robot",
+        map.origin.x, map.origin.y, preserve_meters, preserve_meters
+    );
 
     publishMap(map);
-
     is_map_resizing = false;
   }
 
@@ -154,6 +206,19 @@ private:
     if (is_map_resizing)
       return;
 
+    if (!checkTransformAvailable()) {
+      ROS_WARN_THROTTLE(
+          2.0, "[mapper] Transform odom->base_link not available, skipping "
+               "point cloud processing"
+      );
+      return;
+    }
+
+    if (!allDataReady()) {
+      ROS_WARN_THROTTLE(2.0, "[mapper] Data missing");
+      return;
+    }
+
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr current_cloud(
         new pcl::PointCloud<pcl::PointXYZRGB>
     );
@@ -164,7 +229,7 @@ private:
 
     if (cloud_height != current_mask.rows || cloud_width != current_mask.cols) {
       if (cloud_height * cloud_width == current_mask.cols * current_mask.rows) {
-        current_mask = current_mask.reshape(1, 1);
+        current_mask = current_mask.reshape(1, cloud_height * cloud_width);
       } else {
         ROS_ERROR_THROTTLE(
             1.0,
@@ -248,8 +313,13 @@ private:
   }
 
 public:
-  Mapper() {
+  Mapper() : tf_listener(tf_buffer) {
     loadParameters();
+
+    got_mask      = false;
+    got_odom      = false;
+    got_cloud     = false;
+    got_transform = false;
 
     ROS_INFO("[mapper] Started map with %d x %d", width, height);
 
@@ -263,8 +333,7 @@ public:
         nh.subscribe("map_modify_sub", 1, &Mapper::relocateCallback, this);
 
     modify_pub = nh.advertise<std_msgs::String>("map_modify_pub", 1);
-
-    map_pub = nh.advertise<nav_msgs::OccupancyGrid>("map_pub", 1, true);
+    map_pub    = nh.advertise<nav_msgs::OccupancyGrid>("map_pub", 1, true);
 
     output_map.width      = width;
     output_map.height     = height;
@@ -274,6 +343,8 @@ public:
     output_map.grid.resize(width * height, -1);
 
     log_odds_map.resize(width * height, probToLogOdds(prior));
+
+    ROS_INFO("[mapper] Waiting for transform between odom and base_link...");
   }
 };
 

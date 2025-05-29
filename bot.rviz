@@ -61,15 +61,13 @@ Visualization Manager:
         All Enabled: false
         base_link:
           Value: true
+        odom:
+          Value: true
         os_imu:
           Value: true
         os_lidar:
           Value: true
         os_sensor:
-          Value: true
-        robot/base_link:
-          Value: true
-        robot/odom:
           Value: true
         zed2i_base_link:
           Value: true
@@ -85,6 +83,8 @@ Visualization Manager:
           Value: false
         zed2i_right_camera_optical_frame:
           Value: false
+        zed_camera_link:
+          Value: true
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -92,9 +92,14 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        robot/odom:
-          robot/base_link:
-            base_link:
+        odom:
+          base_link:
+            os_sensor:
+              os_imu:
+                {}
+              os_lidar:
+                {}
+            zed_camera_link:
               zed2i_base_link:
                 zed2i_camera_center:
                   zed2i_left_camera_frame:
@@ -105,11 +110,6 @@ Visualization Manager:
                   zed2i_right_camera_frame:
                     zed2i_right_camera_optical_frame:
                       {}
-            os_sensor:
-              os_imu:
-                {}
-              os_lidar:
-                {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -394,7 +394,7 @@ Visualization Manager:
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: robot/odom
+    Fixed Frame: base_link
     Frame Rate: 30
   Name: root
   Tools:
@@ -418,7 +418,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 46.8610954284668
+      Distance: 11.969093322753906
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -434,9 +434,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 1.5597963333129883
       Target Frame: <Fixed Frame>
-      Yaw: 3.105395555496216
+      Yaw: 3.1303958892822266
     Saved: ~
 Window Geometry:
   Displays:
