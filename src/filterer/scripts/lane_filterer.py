@@ -69,7 +69,7 @@ class LaneFilterer:
         upper_white = np.array([self.hh, self.hs, self.hv])
         mask = cv2.inRange(hsv_image, lower_white, upper_white)
 
-        kernel = np.ones((7, 7), np.uint8)
+        kernel = np.ones((3, 3), np.uint8)
         mask = cv2.erode(mask, kernel=kernel, iterations=1)
         mask = cv2.dilate(mask, kernel=kernel, iterations=1)
 

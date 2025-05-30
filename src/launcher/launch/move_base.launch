@@ -9,4 +9,12 @@
     <param name="base_global_planner" value="navfn/NavfnROS"></param>
     <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS"></param>
   </node>
+  <!-- <node name="move_base" output="screen" pkg="move_base" type="move_base"> -->
+  <!--   <rosparam command="load" file="$(find navigation)/config/local_costmap_params.yaml"></rosparam> -->
+  <!--   <rosparam command="load" file="$(find navigation)/config/global_costmap_params.yaml"></rosparam> -->
+  <!--   <rosparam command="load" file="$(find navigation)/config/base_global_planner.yaml"></rosparam> -->
+  <!--   <rosparam command="load" file="$(find navigation)/config/dwa_local_planner_params.yaml"></rosparam> -->
+  <!--   <param name="base_global_planner" value="navfn/NavfnROS"></param> -->
+  <!--   <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS"></param> -->
+  <!-- </node> -->
 </launch>

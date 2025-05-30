@@ -243,6 +243,7 @@ private:
 
     bool needs_resize = false;
 
+    int count = 0;
     for (int i = 0; i < cloud_width * cloud_height; ++i) {
       const auto &point = current_cloud->points[i];
 
@@ -251,28 +252,30 @@ private:
         continue;
       }
 
-      if (point.z < 0.1) {
-        WorldPose wp = WorldPose(point.x, point.y);
-        MapPose mp   = Utils::getMapPoseFromWorldPose(wp, output_map);
+      WorldPose wp = WorldPose(point.x, point.y);
+      MapPose mp   = Utils::getMapPoseFromWorldPose(wp, output_map);
 
-        if (!output_map.isValid(mp.x, mp.y)) {
-          needs_resize = true;
-          break;
-        }
+      if (!output_map.isValid(mp.x, mp.y)) {
+        needs_resize = true;
+        break;
+      }
 
-        int map_index = output_map.getIndex(mp.x, mp.y);
+      int map_index = output_map.getIndex(mp.x, mp.y);
 
-        auto mask_value = current_mask.at<uchar>(i);
+      auto mask_value = current_mask.at<uchar>(i);
 
-        if (mask_value > 127) {
-          obstacle_count[map_index]++;
-          obstacle_accumulated[map_index] += probToLogOdds(prob_hit);
-        } else {
-          free_count[map_index]++;
-          free_accumulated[map_index] += probToLogOdds(prob_miss);
-        }
+      if (mask_value > 127) {
+        count++;
+        obstacle_count[map_index]++;
+        obstacle_accumulated[map_index] += probToLogOdds(prob_hit);
+      } else {
+        count++;
+        free_count[map_index]++;
+        free_accumulated[map_index] += probToLogOdds(prob_miss);
       }
     }
+
+    ROS_INFO("[mapper] Processed %d points", count);
 
     if (needs_resize) {
       is_map_resizing = true;

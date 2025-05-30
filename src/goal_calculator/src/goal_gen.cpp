@@ -207,7 +207,6 @@ private:
       ROS_INFO("Paused");
       return;
     } else {
-      ROS_INFO("Goal Gen Active");
       if (map_active && odom_active) {
         findGoal();
       }
@@ -277,6 +276,10 @@ public:
     MapPose nearest_lane = Utils::findClosestForValue(
         current_pose.map_pose, current_map, explore_distance, 100
     );
+
+    if (nearest_lane.x == -1 && nearest_lane.y == -1) {
+      return;
+    }
 
     MapPose farthest_lane = Utils::exploreMiddleLane(nearest_lane, current_map);
     WorldPose wp = Utils::getWorldPoseFromMapPose(farthest_lane, current_map);
