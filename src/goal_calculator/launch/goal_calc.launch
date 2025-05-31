@@ -1,19 +1,16 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <launch>
-  <!-- <node name="fake_gps_publisher" pkg="goal_calculator" type="fake_gps_publisher.py"
-  output="screen"></node> -->
-
-  <node name="goal_gen_node" pkg="goal_calculator" type="goal_gen" output="screen">
-    <remap from="map" to="nav/global_map" />
-    <remap from="odom" to="/robot/dlo/odom_node/odom" />
-    <remap from="gps_goal" to="/nav/gps_goal" />
-    <remap from="modify_pub" to="nav/needs_modify" />
-
-    <param name="~explore_distance" value="100" />
-    <param name="~pose_log_offset" value="3" />
-    <param name="~pose_goal_offset" value="5" />
-    <param name="~total_gps_goals" value="3" />
-    <param name="~gps_capture_distance" value="5" />
-  </node>
-
+  <node name="fake_gps_publisher" output="screen" pkg="goal_calculator" type="fake_gps_publisher.py"></node>
+  <!-- <node name="goal_gen_node" pkg="goal_calculator" type="goal_gen" output="screen"> -->
+  <!--   <remap from="map" to="nav/global_map" /> -->
+  <!--   <remap from="odom" to="/robot/dlo/odom_node/odom" /> -->
+  <!--   <remap from="gps_goal" to="/nav/gps_goal" /> -->
+  <!--   <remap from="modify_pub" to="nav/needs_modify" /> -->
+  <!---->
+  <!--   <param name="~explore_distance" value="100" /> -->
+  <!--   <param name="~pose_log_offset" value="3" /> -->
+  <!--   <param name="~pose_goal_offset" value="5" /> -->
+  <!--   <param name="~total_gps_goals" value="3" /> -->
+  <!--   <param name="~gps_capture_distance" value="5" /> -->
+  <!-- </node> -->
 </launch>

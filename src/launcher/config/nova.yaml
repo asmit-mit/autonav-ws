@@ -1,10 +1,10 @@
 lane_filter_node:
   higher_h: 180
-  higher_s: 52
+  higher_s: 35
   higher_v: 255
   lower_h: 0
   lower_s: 0
-  lower_v: 215
+  lower_v: 230
   target_v: 140
 
 mapper:
@@ -15,8 +15,8 @@ mapper:
   max_prob: 0.99
   obstacle_threshold: 0.55
   resolution: 0.04
-  width: 5000
-  height: 5000
+  width: 2500
+  height: 2500
   preserve_meters: 10
 
 obstacle_cloud_node:
@@ -26,8 +26,9 @@ goal_gen_node:
   explore_distance: 1000
   pose_log_offset: 3
   pose_goal_offset: 10
-  total_gps_goals: 3
+  total_gps_goals: 1
   gps_capture_distance: 5
+  mode: automated
 # sensors:
 #   sensor_hostname: "169.254.177.46"
 #   viz: false

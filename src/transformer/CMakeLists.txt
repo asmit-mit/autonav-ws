@@ -7,16 +7,19 @@ project(transformer)
 # Find catkin macros and libraries if COMPONENTS list like find_package(catkin
 # REQUIRED COMPONENTS xyz) is used, also find other catkin packages
 find_package(
-  catkin REQUIRED
-  COMPONENTS rospy
-             roscpp
-             pcl_ros
-             pcl_conversions
-             sensor_msgs
-             std_msgs
-             nav_msgs
-             tf
-             tf2_ros)
+    catkin
+    REQUIRED
+    COMPONENTS
+        rospy
+        roscpp
+        pcl_ros
+        pcl_conversions
+        sensor_msgs
+        std_msgs
+        nav_msgs
+        tf
+        tf2_ros
+)
 
 # System dependencies are found with CMake's conventions find_package(Boost
 # REQUIRED COMPONENTS system)
@@ -91,8 +94,10 @@ catkin_package(
 
 # Specify additional locations of header files Your package locations should be
 # listed before other locations
-include_directories(# include
-                    ${catkin_INCLUDE_DIRS})
+include_directories(
+    # include
+    ${catkin_INCLUDE_DIRS}
+)
 
 # Declare a C++ library add_library(${PROJECT_NAME}
 # src/${PROJECT_NAME}/transformer.cpp )
@@ -170,3 +175,6 @@ target_link_libraries(zed_tf ${catkin_LIBRARIES})
 
 add_executable(odom_pc src/odom_pc.cpp)
 target_link_libraries(odom_pc ${catkin_LIBRARIES})
+
+add_executable(base_link_tf src/base_link_tf.cpp)
+target_link_libraries(base_link_tf ${catkin_LIBRARIES})

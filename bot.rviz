@@ -61,8 +61,6 @@ Visualization Manager:
         All Enabled: false
         base_link:
           Value: true
-        odom:
-          Value: true
         os_imu:
           Value: true
         os_lidar:
@@ -92,24 +90,23 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        odom:
-          base_link:
-            os_sensor:
-              os_imu:
-                {}
-              os_lidar:
-                {}
-            zed_camera_link:
-              zed2i_base_link:
-                zed2i_camera_center:
-                  zed2i_left_camera_frame:
-                    zed2i_imu_link:
-                      {}
-                    zed2i_left_camera_optical_frame:
-                      {}
-                  zed2i_right_camera_frame:
-                    zed2i_right_camera_optical_frame:
-                      {}
+        base_link:
+          os_sensor:
+            os_imu:
+              {}
+            os_lidar:
+              {}
+          zed_camera_link:
+            zed2i_base_link:
+              zed2i_camera_center:
+                zed2i_left_camera_frame:
+                  zed2i_imu_link:
+                    {}
+                  zed2i_left_camera_optical_frame:
+                    {}
+                zed2i_right_camera_frame:
+                  zed2i_right_camera_optical_frame:
+                    {}
       Update Interval: 0
       Value: true
     - Class: rviz/Image

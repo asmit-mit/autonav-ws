@@ -12,25 +12,22 @@ class GoalPublisher:
         rospy.init_node("fake_gps_publisher")
 
         self.goals = [
-            (12.543336868286133, 6.126256465911865, 1.0),
-            (3.1713614463806152, 5.734902381896973, 2.0),
-            (0, 0, 3.0),
+            (9.5, -8.2, 1.0),
+            (0, 0, 2.0),
         ]
         self.current_goal_index = 0
 
         self.goal_pub = rospy.Publisher(
-            "/nav/gps_goal", PoseStamped, queue_size=10
+            "nav/gps_goal", PoseStamped, queue_size=10
         )
-        self.odom_sub = rospy.Subscriber(
-            "/robot/dlo/odom_node/odom", Odometry, self.odom_callback
-        )
+        self.odom_sub = rospy.Subscriber("odom", Odometry, self.odom_callback)
 
         self.rate = rospy.Rate(5)  # 5 Hz
 
     def publish_current_goal(self):
         goal_msg = PoseStamped()
         goal_msg.header.stamp = rospy.Time.now()
-        goal_msg.header.frame_id = "robot/odom"
+        goal_msg.header.frame_id = "odom"
         goal_msg.pose.position.x = self.goals[self.current_goal_index][0]
         goal_msg.pose.position.y = self.goals[self.current_goal_index][1]
         goal_msg.pose.position.z = self.goals[self.current_goal_index][2]
