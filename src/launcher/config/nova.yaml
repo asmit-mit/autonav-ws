@@ -26,7 +26,7 @@ goal_gen_node:
   explore_distance: 1000
   pose_log_offset: 3
   pose_goal_offset: 10
-  total_gps_goals: 1
+  total_gps_goals: 2
   gps_capture_distance: 5
   mode: automated
 # sensors:

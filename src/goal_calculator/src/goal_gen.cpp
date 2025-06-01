@@ -207,6 +207,7 @@ private:
       ROS_INFO("Paused");
       return;
     } else {
+      ROS_INFO("Goal Gen Active");
       if (map_active && odom_active) {
         findGoal();
       }

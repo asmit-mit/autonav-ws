@@ -12,8 +12,9 @@ class GoalPublisher:
         rospy.init_node("fake_gps_publisher")
 
         self.goals = [
-            (9.5, -8.2, 1.0),
-            (0, 0, 2.0),
+            (30.0, 19.8, 1.0),
+            (28.7, 41.3, 2.0),
+            (0, 0, 3.0),
         ]
         self.current_goal_index = 0
 
@@ -43,7 +44,7 @@ class GoalPublisher:
             (goal_x - current_x) ** 2 + (goal_y - current_y) ** 2
         )
 
-        if distance < 1.0:
+        if distance < 1.5:
             self.current_goal_index = (self.current_goal_index + 1) % len(
                 self.goals
             )

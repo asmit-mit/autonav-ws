@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
   <!-- Define Arguments -->
-  <arg default="169.254.177.46" name="sensor_hostname"></arg>
+  <arg default="169.254.60.161" name="sensor_hostname"></arg>
   <arg default="false" name="viz"></arg>
   <arg default="false" name="rviz"></arg>
   <arg default="/lidar/points" name="pointcloud_topic"></arg>
