@@ -7,5 +7,5 @@
     <remap from="gps_goal" to="/nav/gps_goal"></remap>
     <remap from="modify_pub" to="nav/needs_modify"></remap>
   </node>
-  <node name="fake_gps_publisher" output="screen" pkg="goal_calculator" type="fake_gps_publisher.py"></node>
+  <!-- <node name="fake_gps_publisher" output="screen" pkg="goal_calculator" type="fake_gps_publisher.py"></node> -->
 </launch>
