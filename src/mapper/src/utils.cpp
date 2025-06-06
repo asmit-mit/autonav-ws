@@ -86,9 +86,8 @@ public:
     return world_pose;
   }
 
-  static MapPose findClosestForValue(
-      const MapPose &pose, const Map &map, int radius, int value
-  ) {
+  static MapPose
+  findValue(const MapPose &pose, const Map &map, int radius, int value) {
     const int dx[] = {0, 1, 0, -1, 1, -1, 1, -1};
     const int dy[] = {-1, 0, 1, 0, -1, 1, 1, -1};
 
@@ -120,7 +119,7 @@ public:
         continue;
       }
 
-      for (int i = 0; i < 4; i++) {
+      for (int i = 0; i < 8; i++) {
         int nx = current.x + dx[i];
         int ny = current.y + dy[i];
         MapPose neighbor(nx, ny);
@@ -136,7 +135,7 @@ public:
     return MapPose(-1, -1);
   }
 
-  static MapPose exploreMiddleLane(const MapPose &start, const Map &map) {
+  static MapPose exploreLane(const MapPose &start, const Map &map) {
     const int dx[] = {0, 1, 0, -1, 1, -1, 1, -1};
     const int dy[] = {-1, 0, 1, 0, -1, 1, 1, -1};
 
@@ -166,22 +165,6 @@ public:
             map.getValue(nx, ny) == 100) {
           visited.insert(hash);
           q.push(neighbor);
-        }
-      }
-
-      const int search_radius = 10;
-      for (int dy = -search_radius; dy <= search_radius; ++dy) {
-        for (int dx = -search_radius; dx <= search_radius; ++dx) {
-          int nx = current.x + dx;
-          int ny = current.y + dy;
-          MapPose neighbor(nx, ny);
-          int hash = hashFunc(neighbor);
-
-          if (map.isValid(nx, ny) && visited.find(hash) == visited.end() &&
-              map.getValue(nx, ny) == 100) {
-            visited.insert(hash);
-            q.push(neighbor);
-          }
         }
       }
     }

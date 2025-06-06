@@ -60,6 +60,8 @@ private:
   cv::Mat current_mask;
   Map output_map;
 
+  nav_msgs::OccupancyGrid grid_msg;
+
   std::unordered_map<int, int> free_count;
   std::unordered_map<int, int> obstacle_count;
   std::unordered_map<int, float> free_accumulated;
@@ -77,7 +79,7 @@ private:
       got_transform = true;
       return true;
     } catch (tf2::TransformException &ex) {
-      ROS_WARN_THROTTLE(5.0, "[mapper] Transform not available: %s", ex.what());
+      ROS_WARN_THROTTLE(5.0, "[Mapper] Transform not available: %s", ex.what());
       got_transform = false;
       return false;
     }
@@ -99,8 +101,6 @@ private:
   }
 
   void publishMap(Map &map) {
-    nav_msgs::OccupancyGrid grid_msg;
-
     grid_msg.header.stamp    = ros::Time::now();
     grid_msg.header.frame_id = "odom";
 
@@ -160,7 +160,7 @@ private:
     }
 
     ROS_INFO(
-        "[mapper] Relocated map to %f %f, preserved %dx%d area around robot",
+        "[Mapper] Relocated map to %f %f, preserved %dx%d area around robot",
         map.origin.x, map.origin.y, preserve_meters, preserve_meters
     );
 
@@ -208,14 +208,14 @@ private:
 
     if (!checkTransformAvailable()) {
       ROS_WARN_THROTTLE(
-          2.0, "[mapper] Transform odom->base_link not available, skipping "
+          2.0, "[Mapper] Transform odom->base_link not available, skipping "
                "point cloud processing"
       );
       return;
     }
 
     if (!allDataReady()) {
-      ROS_WARN_THROTTLE(2.0, "[mapper] Data missing");
+      ROS_WARN_THROTTLE(2.0, "[Mapper] Data missing");
       return;
     }
 
@@ -233,7 +233,7 @@ private:
       } else {
         ROS_ERROR_THROTTLE(
             1.0,
-            "[mapper] Mask and point cloud dimensions don't match! Mask total: "
+            "[Mapper] Mask and point cloud dimensions don't match! Mask total: "
             "%zu, Cloud total: %d",
             current_mask.total(), cloud_width * cloud_height
         );
@@ -274,8 +274,6 @@ private:
         free_accumulated[map_index] += probToLogOdds(prob_miss);
       }
     }
-
-    ROS_INFO("[mapper] Processed %d points", count);
 
     if (needs_resize) {
       is_map_resizing = true;
@@ -324,7 +322,7 @@ public:
     got_cloud     = false;
     got_transform = false;
 
-    ROS_INFO("[mapper] Started map with %d x %d", width, height);
+    ROS_INFO("[Mapper] Started map with %d x %d", width, height);
 
     cloud_sub = nh.subscribe(
         "pointcloud_topic_sub", 1, &Mapper::pointCloudCallback, this
@@ -347,13 +345,13 @@ public:
 
     log_odds_map.resize(width * height, probToLogOdds(prior));
 
-    ROS_INFO("[mapper] Waiting for transform between odom and base_link...");
+    ROS_INFO("[Mapper] Waiting for transform between odom and base_link...");
   }
 };
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mapper");
-  ROS_INFO("[mapper] PointCloud Mapper Node Started.");
+  ROS_INFO("[Mapper] PointCloud Mapper Node Started.");
   Mapper mapper;
   ros::spin();
   return 0;

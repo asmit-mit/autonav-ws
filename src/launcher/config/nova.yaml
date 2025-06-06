@@ -1,10 +1,10 @@
 lane_filter_node:
   higher_h: 180
-  higher_s: 35
+  higher_s: 40
   higher_v: 255
   lower_h: 0
   lower_s: 0
-  lower_v: 230
+  lower_v: 220
   target_v: 140
 
 mapper:

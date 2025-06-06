@@ -216,3 +216,9 @@ target_link_libraries(mapper ${catkin_LIBRARIES})
 
 add_executable(obstacle_cloud_node src/obstacle_cloud.cpp)
 target_link_libraries(obstacle_cloud_node ${catkin_LIBRARIES})
+
+add_executable(map_localizer src/map_localizer.cpp)
+target_link_libraries(map_localizer ${catkin_LIBRARIES})
+
+add_executable(map_assembler src/map_assembler.cpp)
+target_link_libraries(map_assembler ${catkin_LIBRARIES})
