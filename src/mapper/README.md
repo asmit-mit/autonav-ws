@@ -1,4 +1,4 @@
-# IGVC 2025 AutoNav Competition: Mapping Algorithm Documentation
+# Mapping Algorithm Documentation
 
 ## 1. Need for a Custom Mapping Algorithm
 
