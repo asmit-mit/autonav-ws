@@ -174,7 +174,8 @@ private:
       int count = pair.second;
 
       float average_update = free_accumulated[index] / count;
-      log_odds_map[index] += average_update;
+      log_odds_map[index] =
+          log_odds_map[index] + average_update - probToLogOdds(prior);
 
       float prob          = logOddsToProb(log_odds_map[index]);
       prob                = std::max(min_prob, std::min(max_prob, prob));
@@ -184,10 +185,12 @@ private:
     }
 
     for (const auto &pair : obstacle_count) {
-      int index            = pair.first;
-      int count            = pair.second;
+      int index = pair.first;
+      int count = pair.second;
+
       float average_update = obstacle_accumulated[index] / count;
-      log_odds_map[index] += average_update;
+      log_odds_map[index] =
+          log_odds_map[index] + average_update - probToLogOdds(prior);
 
       float prob          = logOddsToProb(log_odds_map[index]);
       prob                = std::max(min_prob, std::min(max_prob, prob));
