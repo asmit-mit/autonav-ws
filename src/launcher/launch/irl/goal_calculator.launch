@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
-  <rosparam command="load" file="$(find launcher)/config/nova.yaml"></rosparam>
+  <rosparam command="load" file="$(find launcher)/config/irl/nova.yaml"></rosparam>
   <node name="goal_gen_node" output="screen" pkg="goal_calculator" type="goal_gen">
     <remap from="map" to="nav/global_map"></remap>
     <remap from="odom" to="odom"></remap>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <include file="$(find launcher)/launch/irl/sensors.launch"></include>
+  <include file="$(find launcher)/launch/irl/transforms.launch"></include>
+  <include file="$(find launcher)/launch/irl/vision.launch"></include>
+  <include file="$(find launcher)/launch/irl/move_base.launch"></include>
+  <!-- <include file="$(find launcher)/launch/goal_calculator.launch"></include> -->
+</launch>

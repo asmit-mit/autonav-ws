@@ -12,14 +12,16 @@ class GoalPublisher:
         rospy.init_node("fake_gps_publisher")
 
         self.goals = [
-            (30.0, 19.8, 1.0),
-            (28.7, 41.3, 2.0),
-            (0, 0, 3.0),
+            (11.722544846516783, 20.963197274850558, 1.0),
+            (6.1009241092590925, 10.276119492082477, 2.0),
+            (-6.080009506543892, 10.12216460955621, 3.0),
+            (-12.753273858654046, 21.868191619181516, 4.0),
+            (0, 0, 5.0),
         ]
         self.current_goal_index = 0
 
         self.goal_pub = rospy.Publisher(
-            "nav/gps_goal", PoseStamped, queue_size=10
+            "/nav/gps_goal", PoseStamped, queue_size=10
         )
         self.odom_sub = rospy.Subscriber("odom", Odometry, self.odom_callback)
 
@@ -44,7 +46,7 @@ class GoalPublisher:
             (goal_x - current_x) ** 2 + (goal_y - current_y) ** 2
         )
 
-        if distance < 1.5:
+        if distance < 1.0:
             self.current_goal_index = (self.current_goal_index + 1) % len(
                 self.goals
             )

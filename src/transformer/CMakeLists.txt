@@ -176,5 +176,5 @@ target_link_libraries(zed_tf ${catkin_LIBRARIES})
 add_executable(odom_pc src/odom_pc.cpp)
 target_link_libraries(odom_pc ${catkin_LIBRARIES})
 
-add_executable(base_link_tf src/base_link_tf.cpp)
-target_link_libraries(base_link_tf ${catkin_LIBRARIES})
+add_executable(odom_pc_sim src/odom_pc_sim.cpp)
+target_link_libraries(odom_pc_sim ${catkin_LIBRARIES})

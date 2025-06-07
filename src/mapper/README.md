@@ -126,3 +126,7 @@ The mapping algorithm uses **Bayesian inference** to compute the probability of 
 
    - Over many updates, the Bayesian method prevents probabilities from saturating too quickly to 0 or 1 unless there is overwhelming evidence.
    - The simple addition method can lead to overconfidence in the map, making it less robust to sensor noise or dynamic changes.
+
+---
+
+The mapping node for sim differs in only one aspect. We also filter the z value of the points. This is to make sure that we are only taking in points which are close to the ground.

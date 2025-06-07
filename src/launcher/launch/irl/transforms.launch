@@ -2,7 +2,6 @@
 <launch>
   <node name="lidar_tf" output="screen" pkg="transformer" type="lidar_tf"></node>
   <node name="odom_pc" output="screen" pkg="transformer" type="odom_pc"></node>
-  <!-- <node name="base_link_tf" output="screen" pkg="transformer" type="base_link_tf"></node> -->
   <node name="zed_tf" output="screen" pkg="transformer" type="zed_tf"></node>
   <node args="0.165 0 0.475 0 0 0 1 base_link os_sensor 10" name="odom_sensor_tf" output="screen" pkg="tf" type="static_transform_publisher"></node>
 </launch>

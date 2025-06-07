@@ -18,3 +18,9 @@
 [submodule "src/wit_ros_imu"]
 	path = src/wit_ros_imu
 	url = git@github.com:orca-12386/wit_ros_imu.git
+[submodule "src/robot_description"]
+	path = src/robot_description
+	url = git@github.com:orca-12386/robot_description.git
+[submodule "src/IGVC_sim"]
+	path = src/IGVC_sim
+	url = git@github.com:orca-12386/IGVC_sim.git

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <!-- Move Base Node -->
+  <node name="move_base" output="screen" pkg="move_base" type="move_base">
+    <rosparam command="load" file="$(find navigation)/config/sim/local_costmap_params.yaml"></rosparam>
+    <rosparam command="load" file="$(find navigation)/config/sim/global_costmap_params.yaml"></rosparam>
+    <rosparam command="load" file="$(find navigation)/config/sim/teb_local_planner_params.yaml"></rosparam>
+    <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS"></param>
+  </node>
+</launch>

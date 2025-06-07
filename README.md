@@ -10,13 +10,11 @@ The stack is built on **Ubuntu 20.04** and uses **ROS Noetic**.
 
 ### Bot and Pipeline Overview
 
-Below are side-by-side images of the bot **STEVE** and the stack pipeline:
+Below images are of the bot **STEVE** and the stack pipeline:
 
-| STEVE Bot                      | Stack Pipeline                         |
-| ------------------------------ | -------------------------------------- |
-| ![STEVE Bot](images/steve.jpg) | ![Stack Pipeline](images/pipeline.png) |
+## ![STEVE Bot](images/steve.jpg)
 
----
+## ![Stack Pipeline](images/pipeline.png)
 
 ## Sensors
 
@@ -43,7 +41,7 @@ Each package in the stack has detailed documentation within its respective folde
 
 1. Clone the repository:
    ```bash
-   git clone git@github.com:asmit-mit/autonav-ws.git
+   git clone git@github.com:asmit-mit/autonav-ws.git --recurisve
    ```
 2. Navigate build and source:
    ```bash
@@ -54,4 +52,19 @@ Each package in the stack has detailed documentation within its respective folde
 3. Launch the stack:
    ```bash
    roslaunch launcher sb.launch
+   ```
+4. Launch goal calculator node:
+   ```bash
+   roslaunch launcher goal_calculator.launch
+   ```
+
+## To Launch the Simulation
+
+1. Launch the stack:
+   ```bash
+   roslaunch launcher sb_sim.launch
+   ```
+2. Launch goal calculator node:
+   ```bash
+   roslaunch launcher goal_calculator_sim.launch
    ```

@@ -6,8 +6,6 @@
   <arg default="false" name="rviz"></arg>
   <arg default="/lidar/points" name="pointcloud_topic"></arg>
   <arg default="/lidar/imu" name="imu_topic"></arg>
-  <!-- Load common parameters -->
-  <rosparam command="load" file="$(find launcher)/config/nova.yaml"></rosparam>
   <!-- Ouster ROS Driver -->
   <include file="$(find ouster_ros)/launch/driver.launch">
     <arg name="sensor_hostname" value="$(arg sensor_hostname)"></arg>

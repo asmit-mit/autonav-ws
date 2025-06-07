@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <include file="$(find simulation)/launch/igvc_sim.launch"></include>
+  <include file="$(find launcher)/launch/sim/transforms_sim.launch"></include>
+  <include file="$(find launcher)/launch/sim/vision_sim.launch"></include>
+  <include file="$(find launcher)/launch/sim/move_base_sim.launch"></include>
+  <!-- <include file="$(find launcher)/launch/sim/goal_calculator_sim.launch"></include> -->
+</launch>

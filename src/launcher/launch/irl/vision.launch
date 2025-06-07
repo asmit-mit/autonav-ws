@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <rosparam command="load" file="$(find launcher)/config/irl/nova.yaml"></rosparam>
+  <!-- Lane Filter Launch -->
+  <node name="lane_filter_node" output="screen" pkg="filterer" type="lane_filterer.py">
+    <remap from="rgb_image_topic_sub" to="/zed_node/rgb/image_rect_color"></remap>
+    <remap from="mask_topic_pub" to="/lane_filter/mask"></remap>
+  </node>
+  <!-- Mapper Launch -->
+  <node name="mapper" output="screen" pkg="mapper" type="mapper">
+    <remap from="pointcloud_topic_sub" to="/nav/point_cloud"></remap>
+    <remap from="odom_topic_sub" to="odom"></remap>
+    <remap from="mask_topic_sub" to="/lane_filter/mask"></remap>
+    <remap from="map_modify_sub" to="nav/needs_modify"></remap>
+    <remap from="map_modify_pub" to="nav/needs_modify"></remap>
+    <remap from="goal_sleep_pub" to="nav/goal_sleep"></remap>
+    <remap from="map_pub" to="/nav/global_map"></remap>
+  </node>
+  <!-- Obstacle Cloud Publisher -->
+  <node name="obstacle_cloud_node" output="screen" pkg="mapper" type="obstacle_cloud_node">
+    <remap from="pointcloud_sub" to="/lidar/points"></remap>
+    <remap from="obstacle_cloud_pub" to="/nav/obstacle_cloud"></remap>
+  </node>
+</launch>
