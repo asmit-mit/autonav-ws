@@ -1,26 +1,29 @@
-[submodule "src/zed-ros-wrapper"]
-	path = src/zed-ros-wrapper
-	url = git@github.com:asmit-mit/zed-ros-wrapper.git
 [submodule "src/ouster-ros"]
 	path = src/ouster-ros
 	url = https://github.com/ouster-lidar/ouster-ros.git
 [submodule "src/direct_lidar_odometry"]
 	path = src/direct_lidar_odometry
 	url = https://github.com/vectr-ucla/direct_lidar_odometry.git
-[submodule "src/teleop_controller"]
-  path = src/teleop_controller
-  url = git@github.com:Karthikeya819/teleop_controller.git
-  branch = python3
 [submodule "src/nova_localization"]
   path = src/nova_localization
   url = git@github.com:Karthikeya819/nova_localization.git
   branch = test1
-[submodule "src/wit_ros_imu"]
-	path = src/wit_ros_imu
-	url = git@github.com:orca-12386/wit_ros_imu.git
 [submodule "src/robot_description"]
 	path = src/robot_description
 	url = git@github.com:orca-12386/robot_description.git
 [submodule "src/IGVC_sim"]
 	path = src/IGVC_sim
 	url = git@github.com:orca-12386/IGVC_sim.git
+[submodule "src/zed-ros-wrapper"]
+	path = src/zed-ros-wrapper
+	url = git@github.com:asmit-mit/zed-ros-wrapper.git
+[submodule "src/teleop_controller"]
+	path = src/teleop_controller
+	url = git@github.com:Karthikeya819/teleop_controller.git
+	branch = python3
+[submodule "src/src/wit_ros_imu"]
+	path = src/src/wit_ros_imu
+	url = git@github.com:orca-12386/wit_ros_imu.git
+[submodule "src/wit_ros_imu"]
+	path = src/wit_ros_imu
+	url = git@github.com:orca-12386/wit_ros_imu.git
