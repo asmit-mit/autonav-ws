@@ -3,7 +3,7 @@
 	url = https://github.com/ouster-lidar/ouster-ros.git
 [submodule "src/direct_lidar_odometry"]
 	path = src/direct_lidar_odometry
-	url = https://github.com/vectr-ucla/direct_lidar_odometry.git
+	url = git@github.com:asmit-mit/direct_lidar_odometry.git
 [submodule "src/nova_localization"]
   path = src/nova_localization
   url = git@github.com:Karthikeya819/nova_localization.git
