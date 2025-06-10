@@ -21,9 +21,6 @@
 	path = src/teleop_controller
 	url = git@github.com:Karthikeya819/teleop_controller.git
 	branch = python3
-[submodule "src/src/wit_ros_imu"]
-	path = src/src/wit_ros_imu
-	url = git@github.com:orca-12386/wit_ros_imu.git
 [submodule "src/wit_ros_imu"]
 	path = src/wit_ros_imu
 	url = git@github.com:orca-12386/wit_ros_imu.git
