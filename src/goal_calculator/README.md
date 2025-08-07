@@ -2,14 +2,14 @@
 
 ## Overview
 
-The **Goal Calculator** is a critical component designed to generate intermediate navigation goals for the bot. It ensures the bot navigates effectively between GPS waypoints and through unmapped portions of the course, enabling smooth traversal in navigation.
+The **Goal Calculator** is a critical component designed to generate intermediate navigation goals for the bot. It ensures the bot navigates effectively between GPS waypoints and through unmapped portions of the course.
 
 ---
 
 ## Why a Goal Calculator is Needed
 
 - **Insufficient GPS Points**: The course provides only a few GPS coordinates, which are insufficient for the bot to navigate the entire course.
-- **Intermediate Goals**: The Goal Calculator generates intermediate goals:
+- **Intermediate Goals**: The Goal Calculator generates intermediate goals using lane data:
   - Before the bot reaches a GPS waypoint.
   - After all GPS waypoints are visited, allowing continuous navigation.
 - **Flexible Navigation**: The intermediate goals act as a general directional guide rather than precise lane-following markers.
@@ -70,12 +70,10 @@ The **Goal Calculator** is a critical component designed to generate intermediat
 ## Modes of Operation
 
 1. **`gps` Mode**:
-
    - The calculator halts lane-following calculations.
    - Publishes only the provided GPS coordinates as final goals.
 
 2. **`lane_follow` Mode**:
-
    - GPS waypoint processing is stopped.
    - The algorithm continuously calculates intermediate goals based on the lane-following method.
    - Operation stops when the bot reaches the end of the lanes.
