@@ -60,10 +60,8 @@ private:
   cv::Mat current_mask;
   Map output_map;
 
-  std::unordered_map<int, int> free_count;
-  std::unordered_map<int, int> obstacle_count;
-  std::unordered_map<int, float> free_accumulated;
-  std::unordered_map<int, float> obstacle_accumulated;
+  std::unordered_map<int, int> counter;
+  std::unordered_map<int, float> accumulated;
 
   float probToLogOdds(float prob) { return log(prob / (1.0 - prob)); }
 
@@ -117,6 +115,48 @@ private:
 
     map_pub.publish(grid_msg);
   }
+  
+  void resizeMap(Map &map, int left, int right, int up, int down) {
+    ROS_INFO(
+        "[mapper] Map getting resized by %d %d %d %d",
+        left, right, up, down
+    );
+
+    std::vector<int8_t> old_grid     = map.grid;
+    std::vector<double> old_log_odds = log_odds_map;
+    Map old_map                      = map;
+
+    int new_width  = old_map.width + left + right;
+    int new_height = old_map.height + up + down;
+
+    map.origin.x = old_map.origin.x - left * map.resolution;
+    map.origin.y = old_map.origin.y - down * map.resolution;
+
+    map.width  = new_width;
+    map.height = new_height;
+    map.grid.assign(new_width * new_height, -1);
+    log_odds_map.assign(new_width * new_height, probToLogOdds(prior));
+
+    int x_offset = left;
+    int y_offset = down;
+
+    for (int y = 0; y < old_map.height; y++) {
+      for (int x = 0; x < old_map.width; x++) {
+        int old_index = y * old_map.width + x;
+
+        int new_x = x + x_offset;
+        int new_y = y + y_offset;
+
+        int new_index = new_y * new_width + new_x;
+
+        map.grid[new_index] = old_grid[old_index];
+        log_odds_map[new_index] = old_log_odds[old_index];
+      }
+    }
+
+    publishMap(map);
+    is_map_resizing = false;
+  }
 
   void relocate(Map &map) {
     int preserve_cells = static_cast<int>(preserve_meters / map.resolution);
@@ -169,13 +209,12 @@ private:
   }
 
   void updateMap(Map &map) {
-    for (const auto &pair : free_count) {
+    for (const auto &pair : counter) {
       int index = pair.first;
       int count = pair.second;
 
-      float average_update = free_accumulated[index] / count;
       log_odds_map[index] =
-          log_odds_map[index] + average_update - probToLogOdds(prior);
+          log_odds_map[index] + (accumulated[index] - count * probToLogOdds(prior));
 
       float prob          = logOddsToProb(log_odds_map[index]);
       prob                = std::max(min_prob, std::min(max_prob, prob));
@@ -184,25 +223,8 @@ private:
       map.grid[index] = (prob >= obstacle_thresh) ? 100 : 0;
     }
 
-    for (const auto &pair : obstacle_count) {
-      int index = pair.first;
-      int count = pair.second;
-
-      float average_update = obstacle_accumulated[index] / count;
-      log_odds_map[index] =
-          log_odds_map[index] + average_update - probToLogOdds(prior);
-
-      float prob          = logOddsToProb(log_odds_map[index]);
-      prob                = std::max(min_prob, std::min(max_prob, prob));
-      log_odds_map[index] = probToLogOdds(prob);
-
-      map.grid[index] = (prob >= obstacle_thresh) ? 100 : 0;
-    }
-
-    free_count.clear();
-    obstacle_count.clear();
-    free_accumulated.clear();
-    obstacle_accumulated.clear();
+    counter.clear();
+    accumulated.clear();
   }
 
   void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg) {
@@ -246,6 +268,9 @@ private:
 
     bool needs_resize = false;
 
+    int left = 0, right = 0;
+    int up = 0, down = 0;
+
     for (int i = 0; i < cloud_width * cloud_height; ++i) {
       const auto &point = current_cloud->points[i];
 
@@ -258,28 +283,53 @@ private:
         WorldPose wp = WorldPose(point.x, point.y);
         MapPose mp   = Utils::getMapPoseFromWorldPose(wp, output_map);
 
+        if (Utils::worldDistance(wp, current_pose.world_pose) > 8)
+          continue;
+
         if (!output_map.isValid(mp.x, mp.y)) {
           needs_resize = true;
-          break;
+
+          int width  = output_map.width;
+          int height = output_map.height;
+
+          if (mp.x < 0) {
+            left = std::max(left, -mp.x);
+          }
+          else if (mp.x >= width) {
+            right = std::max(right, mp.x - width + 1);
+          }
+
+          if (mp.y < 0) {
+            down = std::max(down, -mp.y);
+          }
+          else if (mp.y >= height) {
+            up = std::max(up, mp.y - height + 1);
+          }
         }
 
-        int map_index = output_map.getIndex(mp.x, mp.y);
+        if (needs_resize)
+          continue;
 
+        int map_index = output_map.getIndex(mp.x, mp.y);
+        counter[map_index]++;
         auto mask_value = current_mask.at<uchar>(i);
 
-        if (mask_value > 127) {
-          obstacle_count[map_index]++;
-          obstacle_accumulated[map_index] += probToLogOdds(prob_hit);
-        } else {
-          free_count[map_index]++;
-          free_accumulated[map_index] += probToLogOdds(prob_miss);
+        if(mask_value > 127){
+          accumulated[map_index] += probToLogOdds(prob_hit);
+        } else{
+          accumulated[map_index] += probToLogOdds(prob_miss);
         }
       }
     }
 
     if (needs_resize) {
+      counter.clear();
+      accumulated.clear();
+
       is_map_resizing = true;
+      // resizeMap(output_map, left, right, up, down);
       relocate(output_map);
+      return;
     }
 
     updateMap(output_map);
@@ -297,6 +347,11 @@ private:
     tf2::Matrix3x3(q).getRPY(
         current_pose.roll, current_pose.pitch, current_pose.yaw
     );
+
+    if (!got_odom) {
+      output_map.origin.x = current_pose.world_pose.x - (width * resolution / 2.0);
+      output_map.origin.y = current_pose.world_pose.y - (height * resolution / 2.0);
+    }
 
     got_odom = true;
   }

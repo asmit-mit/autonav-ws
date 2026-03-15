@@ -62,10 +62,8 @@ private:
 
   nav_msgs::OccupancyGrid grid_msg;
 
-  std::unordered_map<int, int> free_count;
-  std::unordered_map<int, int> obstacle_count;
-  std::unordered_map<int, float> free_accumulated;
-  std::unordered_map<int, float> obstacle_accumulated;
+  std::unordered_map<int, int> counter;
+  std::unordered_map<int, float> accumulated;
 
   float probToLogOdds(float prob) { return log(prob / (1.0 - prob)); }
 
@@ -169,13 +167,12 @@ private:
   }
 
   void updateMap(Map &map) {
-    for (const auto &pair : free_count) {
+    for (const auto &pair : counter) {
       int index = pair.first;
       int count = pair.second;
 
-      float average_update = free_accumulated[index] / count;
       log_odds_map[index] =
-          log_odds_map[index] + average_update - probToLogOdds(prior);
+          log_odds_map[index] + (accumulated[index] - count * probToLogOdds(prior));
 
       float prob          = logOddsToProb(log_odds_map[index]);
       prob                = std::max(min_prob, std::min(max_prob, prob));
@@ -184,25 +181,8 @@ private:
       map.grid[index] = (prob >= obstacle_thresh) ? 100 : 0;
     }
 
-    for (const auto &pair : obstacle_count) {
-      int index = pair.first;
-      int count = pair.second;
-
-      float average_update = obstacle_accumulated[index] / count;
-      log_odds_map[index] =
-          log_odds_map[index] + average_update - probToLogOdds(prior);
-
-      float prob          = logOddsToProb(log_odds_map[index]);
-      prob                = std::max(min_prob, std::min(max_prob, prob));
-      log_odds_map[index] = probToLogOdds(prob);
-
-      map.grid[index] = (prob >= obstacle_thresh) ? 100 : 0;
-    }
-
-    free_count.clear();
-    obstacle_count.clear();
-    free_accumulated.clear();
-    obstacle_accumulated.clear();
+    counter.clear();
+    accumulated.clear();
   }
 
   void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg) {
@@ -263,19 +243,20 @@ private:
       }
 
       int map_index = output_map.getIndex(mp.x, mp.y);
-
       auto mask_value = current_mask.at<uchar>(i);
+      counter[map_index]++;
 
       if (mask_value > 127) {
-        obstacle_count[map_index]++;
-        obstacle_accumulated[map_index] += probToLogOdds(prob_hit);
+        accumulated[map_index] += probToLogOdds(prob_hit);
       } else {
-        free_count[map_index]++;
-        free_accumulated[map_index] += probToLogOdds(prob_miss);
+        accumulated[map_index] += probToLogOdds(prob_miss);
       }
     }
 
     if (needs_resize) {
+      counter.clear();
+      accumulated.clear();
+
       is_map_resizing = true;
       relocate(output_map);
     }
